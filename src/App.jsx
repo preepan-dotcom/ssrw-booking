@@ -18,15 +18,15 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import { 
-  Calendar, MapPin, Monitor, CheckCircle, XCircle, 
+  Calendar as CalendarIcon, MapPin, Monitor, CheckCircle, XCircle, 
   Clock, Plus, Trash2, LogOut, User as UserIcon, 
-  Menu, X, Bell, Info, Mail, PieChart, Printer
+  Menu, X, Bell, Info, Mail, PieChart, Printer, CheckSquare, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
-// --- รายชื่อผู้ดูแลระบบ (Admin) ---
+// --- รายชื่อผู้ดูแลระบบ / ผู้บริหาร ---
 const ADMIN_EMAILS = [
   "admin@ssrw.ac.th",
-  "preepan@ssrw.ac.th" // อีเมลของคุณสำหรับการทดสอบสิทธิ์ผู้ดูแลระบบ
+  "preepan@ssrw.ac.th" // ผู้ดูแลระบบ
 ];
 
 // --- Firebase Initialization ---
@@ -91,20 +91,22 @@ const Modal = ({ isOpen, onClose, title, children }) => {
 
 const Badge = ({ status }) => {
   const styles = {
-    pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    pending_head: 'bg-amber-100 text-amber-800 border-amber-200',
+    pending_deputy: 'bg-blue-100 text-blue-800 border-blue-200',
     approved: 'bg-green-100 text-green-800 border-green-200',
     rejected: 'bg-red-100 text-red-800 border-red-200',
   };
   
   const labels = {
-    pending: 'รออนุมัติ',
-    approved: 'อนุมัติแล้ว',
+    pending_head: 'รอหัวหน้าฝ่ายรับทราบ',
+    pending_deputy: 'รอรองผู้อำนวยการอนุมัติ',
+    approved: 'อนุมัติเรียบร้อย',
     rejected: 'ไม่อนุมัติ',
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status]}`}>
-      {labels[status]}
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[status] || styles.pending_head}`}>
+      {labels[status] || 'รอตรวจสอบ'}
     </span>
   );
 };
@@ -128,7 +130,6 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        // ตรวจสอบโดเมนอีเมล
         if (!currentUser.email.endsWith('@ssrw.ac.th')) {
           showToast('กรุณาใช้อีเมลโรงเรียน (@ssrw.ac.th) เท่านั้น', 'error');
           await signOut(auth);
@@ -173,7 +174,6 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
-    // Fetch Items
     const itemsUnsub = onSnapshot(
       itemsCol,
       (snapshot) => {
@@ -183,7 +183,6 @@ export default function App() {
       (err) => console.error("Items fetch error:", err)
     );
 
-    // Fetch Bookings
     const bookingsUnsub = onSnapshot(
       bookingsCol,
       (snapshot) => {
@@ -201,18 +200,14 @@ export default function App() {
     };
   }, [user]);
 
-  // --- Login with Real Google Auth ---
+  // Login / Logout
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      hd: 'ssrw.ac.th' // แนะนำให้ใช้โดเมน SSRW เมื่อแสดงหน้าเลือกล็อกอินของ Google
-    });
-
+    provider.setCustomParameters({ hd: 'ssrw.ac.th' });
     try {
       await signInWithPopup(auth, provider);
       showToast('เข้าสู่ระบบสำเร็จ');
     } catch (error) {
-      console.error("Login error:", error);
       if (error.code !== 'auth/popup-closed-by-user') {
         showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
       }
@@ -229,14 +224,6 @@ export default function App() {
     }
   };
 
-  const simulateEmailNotification = (userEmail, itemName, status) => {
-    setTimeout(() => {
-      const statusText = status === 'approved' ? 'อนุมัติ' : 'ไม่อนุมัติ';
-      showToast(`ส่งอีเมลแจ้งเตือนไปยัง ${userEmail}: การจอง "${itemName}" ถูก${statusText}แล้ว`, 'info');
-    }, 1000);
-  };
-
-  // Loading Screen
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -245,7 +232,6 @@ export default function App() {
     );
   }
 
-  // Login View
   if (!user || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -283,7 +269,7 @@ export default function App() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
               <div className="bg-blue-600 p-2 rounded-lg">
-                <Calendar className="text-white h-6 w-6" />
+                <CalendarIcon className="text-white h-6 w-6" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900 hidden sm:block">SSRW Booking</h1>
@@ -296,12 +282,14 @@ export default function App() {
               {!isAdmin && (
                 <>
                   <NavBtn active={activeTab === 'browse'} onClick={() => setActiveTab('browse')} Icon={Monitor} label="รายการจองได้" />
+                  <NavBtn active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <NavBtn active={activeTab === 'my-bookings'} onClick={() => setActiveTab('my-bookings')} Icon={Clock} label="ประวัติการจองของฉัน" />
                 </>
               )}
               {isAdmin && (
                 <>
-                  <NavBtn active={activeTab === 'admin-bookings'} onClick={() => setActiveTab('admin-bookings')} Icon={Bell} label="จัดการคำขอจอง" />
+                  <NavBtn active={activeTab === 'admin-bookings'} onClick={() => setActiveTab('admin-bookings')} Icon={Bell} label="จัดการอนุมัติคำขอ" />
+                  <NavBtn active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <NavBtn active={activeTab === 'admin-items'} onClick={() => setActiveTab('admin-items')} Icon={MapPin} label="จัดการสถานที่/อุปกรณ์" />
                   <NavBtn active={activeTab === 'admin-reports'} onClick={() => setActiveTab('admin-reports')} Icon={PieChart} label="สรุปการใช้งาน" />
                 </>
@@ -311,7 +299,7 @@ export default function App() {
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex flex-col items-end">
                 <span className="text-sm font-semibold text-gray-800">{profile.email}</span>
-                <span className="text-xs text-blue-600 font-medium">{isAdmin ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'}</span>
+                <span className="text-xs text-blue-600 font-medium">{isAdmin ? 'ผู้ดูแลระบบ / ผู้บริหาร' : 'ผู้ใช้งาน'}</span>
               </div>
               <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors" title="ออกจากระบบ">
                 <LogOut size={20} />
@@ -329,12 +317,14 @@ export default function App() {
              {!isAdmin && (
                 <>
                   <MobileNavBtn active={activeTab === 'browse'} onClick={() => {setActiveTab('browse'); setIsMobileMenuOpen(false);}} Icon={Monitor} label="รายการจองได้" />
+                  <MobileNavBtn active={activeTab === 'calendar'} onClick={() => {setActiveTab('calendar'); setIsMobileMenuOpen(false);}} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <MobileNavBtn active={activeTab === 'my-bookings'} onClick={() => {setActiveTab('my-bookings'); setIsMobileMenuOpen(false);}} Icon={Clock} label="ประวัติการจองของฉัน" />
                 </>
               )}
               {isAdmin && (
                 <>
-                  <MobileNavBtn active={activeTab === 'admin-bookings'} onClick={() => {setActiveTab('admin-bookings'); setIsMobileMenuOpen(false);}} Icon={Bell} label="จัดการคำขอจอง" />
+                  <MobileNavBtn active={activeTab === 'admin-bookings'} onClick={() => {setActiveTab('admin-bookings'); setIsMobileMenuOpen(false);}} Icon={Bell} label="จัดการอนุมัติคำขอ" />
+                  <MobileNavBtn active={activeTab === 'calendar'} onClick={() => {setActiveTab('calendar'); setIsMobileMenuOpen(false);}} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <MobileNavBtn active={activeTab === 'admin-items'} onClick={() => {setActiveTab('admin-items'); setIsMobileMenuOpen(false);}} Icon={MapPin} label="จัดการสถานที่/อุปกรณ์" />
                   <MobileNavBtn active={activeTab === 'admin-reports'} onClick={() => {setActiveTab('admin-reports'); setIsMobileMenuOpen(false);}} Icon={PieChart} label="สรุปการใช้งาน" />
                 </>
@@ -347,9 +337,10 @@ export default function App() {
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:m-0 print:max-w-none">
         {!isAdmin && activeTab === 'browse' && <UserBrowseItems items={items} bookings={bookings} user={profile} userId={user.uid} showToast={showToast} />}
         {!isAdmin && activeTab === 'my-bookings' && <UserBookings bookings={bookings.filter(b => b.userId === user.uid)} items={items} />}
+        {activeTab === 'calendar' && <CalendarView bookings={bookings} items={items} />}
         
         {isAdmin && activeTab === 'admin-items' && <AdminManageItems items={items} showToast={showToast} />}
-        {isAdmin && activeTab === 'admin-bookings' && <AdminManageBookings bookings={bookings} items={items} showToast={showToast} simulateEmail={simulateEmailNotification} />}
+        {isAdmin && activeTab === 'admin-bookings' && <AdminManageBookings bookings={bookings} showToast={showToast} />}
         {isAdmin && activeTab === 'admin-reports' && <AdminReports bookings={bookings} items={items} />}
       </main>
 
@@ -358,7 +349,7 @@ export default function App() {
   );
 }
 
-// --- Navigation Helpers ---
+// Nav Buttons
 const NavBtn = ({ active, onClick, Icon, label }) => (
   <button 
     onClick={onClick}
@@ -378,8 +369,6 @@ const MobileNavBtn = ({ active, onClick, Icon, label }) => (
     <Icon size={18} /> {label}
   </button>
 );
-
-// --- Feature Components ---
 
 // 1. User: Browse & Book Items
 const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
@@ -442,11 +431,12 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
       itemName: selectedItem.name,
       userId: userId,
       userEmail: user.email,
+      displayName: user.displayName || user.email.split('@')[0],
       date: date,
       startTime: startTime,
       endTime: endTime,
       purpose: form.purpose.value,
-      status: 'pending',
+      status: 'pending_head', // สเต็ปแรก: รอหัวหน้าฝ่ายบริหารงานทั่วไปรับทราบ
       createdAt: Date.now()
     };
 
@@ -460,8 +450,8 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     }
 
     try {
-      await addDoc(collection(getFirestore(), 'bookings'), bookingData);
-      showToast('ส่งคำขอจองสำเร็จ กรุณารอการอนุมัติ');
+      await addDoc(bookingsCol, bookingData);
+      showToast('ส่งคำขอจองสำเร็จ (เสนอต่อหัวหน้าฝ่ายบริหารงานทั่วไป)');
       setIsModalOpen(false);
       setLayoutImage(null);
       setSelectedDate('');
@@ -481,7 +471,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
       <div className="flex justify-between items-end">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">จองอาคารสถานที่และอุปกรณ์</h2>
-          <p className="text-gray-500 mt-1">เลือกรายการที่ต้องการใช้งาน</p>
+          <p className="text-gray-500 mt-1">โรงเรียนศรีสองรักษ์วิทยา</p>
         </div>
       </div>
 
@@ -635,13 +625,240 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   );
 };
 
-// 2. User: View Own Bookings
+// 2. Calendar View (หน้าปฏิทินแสดงการใช้งานสถานที่)
+const CalendarView = ({ bookings, items }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDayBookings, setSelectedDayBookings] = useState([]);
+  const [selectedDayStr, setSelectedDayStr] = useState('');
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+
+  const prevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
+
+  const thaiMonths = [
+    "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+  ];
+
+  const handleDayClick = (day) => {
+    const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayBookings = bookings.filter(b => b.date === formattedDate && b.status !== 'rejected');
+    setSelectedDayBookings(dayBookings);
+    setSelectedDayStr(`${day} ${thaiMonths[month]} ${year + 543}`);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">ปฏิทินการใช้งานสถานที่และอุปกรณ์</h2>
+          <p className="text-gray-500 mt-1">คลิกที่วันที่เพื่อดูรายการจองรายละเอียดทั้งหมด</p>
+        </div>
+
+        <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-gray-200 shadow-sm">
+          <button onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded-lg text-gray-600"><ChevronLeft size={20} /></button>
+          <span className="font-bold text-gray-800 text-lg">{thaiMonths[month]} {year + 543}</span>
+          <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded-lg text-gray-600"><ChevronRight size={20} /></button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 overflow-x-auto">
+        <div className="grid grid-cols-7 gap-2 min-w-[600px] text-center font-bold text-gray-600 mb-4 border-b pb-3">
+          <div className="text-red-500">อา.</div>
+          <div>จ.</div>
+          <div>อ.</div>
+          <div>พ.</div>
+          <div>พฤ.</div>
+          <div>ศ.</div>
+          <div className="text-blue-500">ส.</div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-2 min-w-[600px]">
+          {/* Empty cells for preceding month */}
+          {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+            <div key={`empty-${i}`} className="h-24 bg-gray-50/50 rounded-xl"></div>
+          ))}
+
+          {/* Days of current month */}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayBookings = bookings.filter(b => b.date === dateStr && b.status !== 'rejected');
+
+            return (
+              <div 
+                key={day} 
+                onClick={() => handleDayClick(day)}
+                className="h-24 p-1.5 border border-gray-100 hover:border-blue-500 rounded-xl bg-white hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+              >
+                <span className="font-semibold text-sm text-gray-700">{day}</span>
+                <div className="space-y-1 overflow-y-auto max-h-14">
+                  {dayBookings.slice(0, 2).map(b => (
+                    <div 
+                      key={b.id} 
+                      className={`text-[10px] px-1.5 py-0.5 rounded truncate font-medium ${
+                        b.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {b.startTime} {b.itemName}
+                    </div>
+                  ))}
+                  {dayBookings.length > 2 && (
+                    <span className="text-[10px] text-gray-400 block text-center">+{dayBookings.length - 2} รายการ</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Selected Day Details */}
+      {selectedDayStr && (
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Clock size={20} className="text-blue-600" /> รายการการใช้งานประจำวันที่ {selectedDayStr}
+          </h3>
+
+          {selectedDayBookings.length === 0 ? (
+            <p className="text-gray-500 text-sm py-4 text-center">ไม่มีการใช้งานในวันนี้</p>
+          ) : (
+            <div className="space-y-3">
+              {selectedDayBookings.map(b => (
+                <div key={b.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-800">{b.itemName}</span>
+                      <Badge status={b.status} />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      <strong>ผู้ขอจอง:</strong> {b.displayName || b.userEmail} | <strong>เวลา:</strong> {b.startTime} - {b.endTime} น.
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1"><strong>วัตถุประสงค์:</strong> {b.purpose}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// 3. Admin: Manage Bookings (อนุมัติ 2 ขั้นตอน)
+const AdminManageBookings = ({ bookings, showToast }) => {
+  const handleUpdateStatus = async (bookingId, newStatus) => {
+    try {
+      await updateDoc(getBookingDoc(bookingId), { status: newStatus });
+      showToast('อัปเดตสถานะเรียบร้อยแล้ว');
+    } catch (error) {
+      showToast('เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'error');
+    }
+  };
+
+  return (
+    <div className="space-y-6 print:hidden">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-800">จัดการอนุมัติคำขอจอง</h2>
+        <p className="text-gray-500 mt-1">ขั้นตอนการรับทราบและอนุมัติการขอใช้อาคารสถานที่และอุปกรณ์</p>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+         <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100 text-gray-600 text-sm">
+                  <th className="p-4 font-semibold">ผู้ขอ/รายการ</th>
+                  <th className="p-4 font-semibold">วันและเวลา</th>
+                  <th className="p-4 font-semibold">วัตถุประสงค์</th>
+                  <th className="p-4 font-semibold text-center">สถานะปัจจุบัน</th>
+                  <th className="p-4 font-semibold text-center">การอนุมัติ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {bookings.length === 0 && (
+                  <tr><td colSpan="5" className="p-8 text-center text-gray-500">ไม่มีคำขอจองในระบบ</td></tr>
+                )}
+                {bookings.map(b => (
+                  <tr key={b.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-4">
+                      <p className="font-bold text-blue-700 mb-1">{b.itemName}</p>
+                      <p className="text-xs font-medium text-gray-800">{b.displayName || b.userEmail}</p>
+                    </td>
+                    <td className="p-4">
+                      <p className="text-sm font-medium text-gray-800">{b.date}</p>
+                      <p className="text-xs text-gray-500 mt-1">{b.startTime} - {b.endTime}</p>
+                    </td>
+                    <td className="p-4 max-w-[200px]">
+                      <p className="text-sm text-gray-700 line-clamp-2" title={b.purpose}>{b.purpose}</p>
+                    </td>
+                    <td className="p-4 text-center">
+                      <Badge status={b.status} />
+                    </td>
+                    <td className="p-4 text-center">
+                      {/* ขั้นตอนที่ 1: หัวหน้าฝ่ายรับทราบ */}
+                      {b.status === 'pending_head' && (
+                        <div className="flex justify-center gap-2">
+                          <button 
+                            onClick={() => handleUpdateStatus(b.id, 'pending_deputy')}
+                            className="bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1"
+                          >
+                            <CheckSquare size={14} /> หัวหน้าฝ่ายรับทราบ
+                          </button>
+                          <button 
+                            onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                            className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            ปฏิเสธ
+                          </button>
+                        </div>
+                      )}
+
+                      {/* ขั้นตอนที่ 2: รองผู้อำนวยการอนุมัติ */}
+                      {b.status === 'pending_deputy' && (
+                        <div className="flex justify-center gap-2">
+                          <button 
+                            onClick={() => handleUpdateStatus(b.id, 'approved')}
+                            className="bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1"
+                          >
+                            <CheckCircle size={14} /> รอง ผอ. อนุมัติ
+                          </button>
+                          <button 
+                            onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                            className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            ปฏิเสธ
+                          </button>
+                        </div>
+                      )}
+
+                      {(b.status === 'approved' || b.status === 'rejected') && (
+                        <span className="text-xs text-gray-400">ดำเนินการแล้ว</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+      </div>
+    </div>
+  );
+};
+
+// 4. User: View Own Bookings
 const UserBookings = ({ bookings }) => {
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-800">ประวัติการจองของฉัน</h2>
-        <p className="text-gray-500 mt-1">ติดตามสถานะคำขอจองของคุณได้ที่นี่</p>
+        <p className="text-gray-500 mt-1">ติดตามสถานะคำขอเสนอผ่านหัวหน้าฝ่ายและรองผู้อำนวยการ</p>
       </div>
 
       {bookings.length === 0 ? (
@@ -657,7 +874,7 @@ const UserBookings = ({ bookings }) => {
                   <th className="p-4 font-semibold">รายการ</th>
                   <th className="p-4 font-semibold">วันและเวลา</th>
                   <th className="p-4 font-semibold">วัตถุประสงค์</th>
-                  <th className="p-4 font-semibold">สถานะ</th>
+                  <th className="p-4 font-semibold">สถานะคำขอ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -673,20 +890,6 @@ const UserBookings = ({ bookings }) => {
                     </td>
                     <td className="p-4">
                       <p className="text-sm text-gray-700 max-w-[200px] truncate" title={b.purpose}>{b.purpose}</p>
-                      {(b.tables || b.chairs || b.layoutImage) && (
-                        <div className="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded border border-gray-100">
-                          {b.tables > 0 && <span>โต๊ะ: {b.tables} </span>}
-                          {b.chairs > 0 && <span>เก้าอี้: {b.chairs} </span>}
-                          {b.soundSystem && <span>เครื่องเสียง </span>}
-                          {b.microphones > 0 && <span>ไมค์: {b.microphones} </span>}
-                          {b.otherEquipment && <span>อื่นๆ: {b.otherEquipment} </span>}
-                          {b.layoutImage && (
-                            <div className="mt-1">
-                              <span className="cursor-pointer text-blue-500 underline" onClick={() => window.open(b.layoutImage)}>ดูผังห้อง</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </td>
                     <td className="p-4">
                       <Badge status={b.status} />
@@ -702,7 +905,7 @@ const UserBookings = ({ bookings }) => {
   );
 };
 
-// 3. Admin: Manage Items
+// 5. Admin: Manage Items
 const AdminManageItems = ({ items, showToast }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -757,18 +960,6 @@ const AdminManageItems = ({ items, showToast }) => {
     }
   };
 
-  const openEdit = (item) => {
-    setEditingItem(item);
-    setItemImage(item.image || null);
-    setIsModalOpen(true);
-  };
-
-  const openAdd = () => {
-    setEditingItem(null);
-    setItemImage(null);
-    setIsModalOpen(true);
-  };
-
   return (
     <div className="space-y-6 print:hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
@@ -776,7 +967,7 @@ const AdminManageItems = ({ items, showToast }) => {
           <h2 className="text-2xl font-bold text-gray-800">จัดการสถานที่และอุปกรณ์</h2>
           <p className="text-gray-500 mt-1">เพิ่ม ลบ หรือแก้ไขข้อมูลรายการที่เปิดให้จอง</p>
         </div>
-        <button onClick={openAdd} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-medium transition-colors shadow-sm">
+        <button onClick={() => { setEditingItem(null); setItemImage(null); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-medium transition-colors shadow-sm">
           <Plus size={20} /> เพิ่มรายการ
         </button>
       </div>
@@ -785,13 +976,11 @@ const AdminManageItems = ({ items, showToast }) => {
         {items.map(item => (
           <div key={item.id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden relative flex flex-col ${!item.isActive ? 'border-dashed border-gray-300 opacity-70' : 'border-gray-100'}`}>
             {!item.isActive && <div className="absolute top-4 right-4 text-xs font-bold bg-gray-200 text-gray-600 px-2 py-1 rounded z-10">ปิดใช้งาน</div>}
-            
             {item.image && (
               <div className="h-32 w-full bg-gray-100 border-b overflow-hidden">
                 <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
               </div>
             )}
-            
             <div className="p-6 flex-1 flex flex-col">
                <div className="flex items-center gap-3 mb-3">
                  <div className={`p-2 rounded-lg ${item.type === 'room' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
@@ -803,7 +992,7 @@ const AdminManageItems = ({ items, showToast }) => {
                <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-auto">
                   <span className="text-sm text-gray-600">รองรับ {item.capacity} คน/ชิ้น</span>
                   <div className="flex gap-2">
-                    <button onClick={() => openEdit(item)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors text-sm font-medium">แก้ไข</button>
+                    <button onClick={() => { setEditingItem(item); setItemImage(item.image || null); setIsModalOpen(true); }} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors text-sm font-medium">แก้ไข</button>
                     <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 size={18}/></button>
                   </div>
                </div>
@@ -812,7 +1001,6 @@ const AdminManageItems = ({ items, showToast }) => {
         ))}
       </div>
 
-      {/* Add/Edit Modal */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingItem ? 'แก้ไขรายการ' : 'เพิ่มรายการใหม่'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -839,18 +1027,6 @@ const AdminManageItems = ({ items, showToast }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">รูปภาพสถานที่/อุปกรณ์</label>
             <input type="file" accept="image/*" onChange={handleItemImageUpload} className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-            {itemImage && (
-              <div className="relative inline-block mt-3">
-                <img src={itemImage} alt="Preview" className="h-24 object-contain rounded-lg border border-gray-200" />
-                <button 
-                  type="button" 
-                  onClick={() => setItemImage(null)} 
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-sm"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-2 mt-2">
             <input type="checkbox" id="isActive" name="isActive" defaultChecked={editingItem ? editingItem.isActive : true} className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
@@ -866,102 +1042,7 @@ const AdminManageItems = ({ items, showToast }) => {
   );
 };
 
-// 4. Admin: Manage Bookings
-const AdminManageBookings = ({ bookings, showToast, simulateEmail }) => {
-  const handleUpdateStatus = async (bookingId, newStatus, userEmail, itemName) => {
-    try {
-      await updateDoc(getBookingDoc(bookingId), { status: newStatus });
-      showToast('อัปเดตสถานะเรียบร้อยแล้ว');
-      simulateEmail(userEmail, itemName, newStatus);
-    } catch (error) {
-      showToast('เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'error');
-    }
-  };
-
-  return (
-    <div className="space-y-6 print:hidden">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">จัดการคำขอจอง</h2>
-        <p className="text-gray-500 mt-1">พิจารณาอนุมัติหรือปฏิเสธคำขอจองจากผู้ใช้งาน</p>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-         <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100 text-gray-600 text-sm">
-                  <th className="p-4 font-semibold">ผู้ขอ/รายการ</th>
-                  <th className="p-4 font-semibold">วันและเวลา</th>
-                  <th className="p-4 font-semibold">วัตถุประสงค์</th>
-                  <th className="p-4 font-semibold text-center">การจัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {bookings.length === 0 && (
-                  <tr><td colSpan="4" className="p-8 text-center text-gray-500">ไม่มีคำขอจองในระบบ</td></tr>
-                )}
-                {bookings.map(b => (
-                  <tr key={b.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4">
-                      <p className="font-bold text-blue-700 mb-1">{b.itemName}</p>
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                         <UserIcon size={14} /> {b.userEmail}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <p className="text-sm font-medium text-gray-800">{b.date}</p>
-                      <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Clock size={12}/> {b.startTime} - {b.endTime}</p>
-                    </td>
-                    <td className="p-4 max-w-[250px]">
-                      <p className="text-sm text-gray-700 line-clamp-2" title={b.purpose}>{b.purpose}</p>
-                      {(b.tables || b.chairs || b.layoutImage) && (
-                        <div className="mt-2 text-xs text-gray-600 bg-blue-50 p-2 rounded-lg border border-blue-100">
-                          <strong>ความต้องการ:</strong><br/>
-                          {b.tables > 0 && <span> โต๊ะ {b.tables} ตัว,</span>}
-                          {b.chairs > 0 && <span> เก้าอี้ {b.chairs} ตัว,</span>}
-                          {b.soundSystem && <span> เครื่องเสียง,</span>}
-                          {b.microphones > 0 && <span> ไมค์ {b.microphones} ตัว</span>}
-                          {b.otherEquipment && <div><strong>อื่นๆ:</strong> {b.otherEquipment}</div>}
-                          {b.layoutImage && (
-                            <div className="mt-2">
-                              <span className="font-semibold block mb-1">ผังการจัดห้อง:</span>
-                              <img src={b.layoutImage} alt="Layout" className="h-16 w-auto border rounded cursor-pointer hover:opacity-80" onClick={() => window.open(b.layoutImage)} />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-4 text-center">
-                      {b.status === 'pending' ? (
-                        <div className="flex justify-center gap-2">
-                          <button 
-                            onClick={() => handleUpdateStatus(b.id, 'approved', b.userEmail, b.itemName)}
-                            className="bg-green-100 text-green-700 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border border-green-200"
-                          >
-                            อนุมัติ
-                          </button>
-                          <button 
-                            onClick={() => handleUpdateStatus(b.id, 'rejected', b.userEmail, b.itemName)}
-                            className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border border-red-200"
-                          >
-                            ปฏิเสธ
-                          </button>
-                        </div>
-                      ) : (
-                        <Badge status={b.status} />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-      </div>
-    </div>
-  );
-};
-
-// 5. Admin: Reports
+// 6. Admin: Reports
 const AdminReports = ({ bookings, items }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -976,169 +1057,39 @@ const AdminReports = ({ bookings, items }) => {
   const total = filteredBookings.length;
   const approved = filteredBookings.filter(b => b.status === 'approved').length;
   const rejected = filteredBookings.filter(b => b.status === 'rejected').length;
-  const pending = filteredBookings.filter(b => b.status === 'pending').length;
-
-  const approvedPct = total > 0 ? (approved / total) * 100 : 0;
-  const rejectedPct = total > 0 ? (rejected / total) * 100 : 0;
-  const pendingPct = total > 0 ? (pending / total) * 100 : 0;
-  
-  const pieStyle = {
-    background: total > 0 
-      ? `conic-gradient(
-          #22c55e 0% ${approvedPct}%, 
-          #ef4444 ${approvedPct}% ${approvedPct + rejectedPct}%, 
-          #eab308 ${approvedPct + rejectedPct}% 100%
-        )`
-      : '#e5e7eb'
-  };
-
-  const itemUsage = {};
-  filteredBookings.forEach(b => {
-    if (b.status === 'approved') {
-      itemUsage[b.itemId] = (itemUsage[b.itemId] || 0) + 1;
-    }
-  });
-
-  const topItems = Object.entries(itemUsage)
-    .map(([itemId, count]) => {
-      const item = items.find(i => i.id === itemId);
-      return { name: item ? item.name : 'ไม่ทราบชื่อ', count };
-    })
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-
-  const maxUsage = topItems.length > 0 ? topItems[0].count : 1;
-
-  const handlePrint = () => {
-    window.print();
-  };
+  const pending = filteredBookings.filter(b => b.status.startsWith('pending')).length;
 
   return (
     <div className="space-y-6">
-      {/* Header for Print Only */}
-      <div className="hidden print:block text-center mb-8 border-b-2 border-black pb-4">
-        <h1 className="text-3xl font-bold text-black mb-2">สรุปการใช้อาคารสถานที่และอุปกรณ์</h1>
-        <h2 className="text-xl text-black">โรงเรียนศรีสองรักษ์วิทยา</h2>
-        <p className="text-md mt-2 text-gray-800">
-          ช่วงเวลา: {startDate || 'เริ่มต้น'} ถึง {endDate || 'ปัจจุบัน'}
-        </p>
-      </div>
-
-      {/* Screen Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 print:hidden">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">สรุปการใช้งานระบบ</h2>
-          <p className="text-gray-500 mt-1">ดูรายงานการขอใช้สถานที่และสั่งพิมพ์เป็นเอกสาร</p>
+          <p className="text-gray-500 mt-1">ดูรายงานการขอใช้สถานที่และสั่งพิมพ์เอกสารรายงาน</p>
         </div>
-        
-        <div className="flex flex-wrap items-end gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-sm w-full md:w-auto">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">ตั้งแต่วันที่</label>
-            <input 
-              type="date" 
-              value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-1.5 border rounded-lg text-sm outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">ถึงวันที่</label>
-            <input 
-              type="date" 
-              value={endDate} 
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-1.5 border rounded-lg text-sm outline-none focus:border-blue-500"
-            />
-          </div>
-          <button 
-            onClick={() => {setStartDate(''); setEndDate('');}}
-            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
-          >
-            ล้างค่า
-          </button>
-          <button 
-            onClick={handlePrint}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ml-auto md:ml-2"
-          >
-            <Printer size={16} /> พิมพ์รายงาน
-          </button>
-        </div>
+        <button 
+          onClick={() => window.print()}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+        >
+          <Printer size={16} /> พิมพ์รายงาน
+        </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:grid-cols-4 print:gap-4 print:mt-4">
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm print:border-gray-400 print:shadow-none">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
           <p className="text-sm font-medium text-gray-500">คำขอทั้งหมด</p>
           <p className="text-3xl font-bold text-gray-800 mt-2">{total}</p>
         </div>
-        <div className="bg-green-50 p-5 rounded-2xl border border-green-100 shadow-sm print:bg-white print:border-gray-400 print:shadow-none">
+        <div className="bg-green-50 p-5 rounded-2xl border border-green-100 shadow-sm">
           <p className="text-sm font-medium text-green-700">อนุมัติแล้ว</p>
           <p className="text-3xl font-bold text-green-800 mt-2">{approved}</p>
         </div>
-        <div className="bg-red-50 p-5 rounded-2xl border border-red-100 shadow-sm print:bg-white print:border-gray-400 print:shadow-none">
+        <div className="bg-red-50 p-5 rounded-2xl border border-red-100 shadow-sm">
           <p className="text-sm font-medium text-red-700">ไม่อนุมัติ</p>
           <p className="text-3xl font-bold text-red-800 mt-2">{rejected}</p>
         </div>
-        <div className="bg-yellow-50 p-5 rounded-2xl border border-yellow-100 shadow-sm print:bg-white print:border-gray-400 print:shadow-none">
-          <p className="text-sm font-medium text-yellow-700">รอตรวจสอบ</p>
-          <p className="text-3xl font-bold text-yellow-800 mt-2">{pending}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2 print:gap-6 print:mt-8">
-        {/* Pie Chart */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm print:border-gray-400 print:shadow-none flex flex-col items-center">
-          <h3 className="font-bold text-gray-800 mb-6 text-lg w-full text-left">สัดส่วนสถานะคำขอ</h3>
-          
-          <div className="relative w-48 h-48 rounded-full border-4 border-white shadow-inner mb-6 print:shadow-none print:border-gray-200" style={pieStyle}>
-            {total === 0 && <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">ไม่มีข้อมูล</div>}
-          </div>
-
-          <div className="flex gap-4 text-sm w-full justify-center">
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-500 print:bg-black print:border print:border-black"></span> อนุมัติ ({approvedPct.toFixed(1)}%)</div>
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500 print:bg-gray-400 print:border print:border-gray-500"></span> ปฏิเสธ ({rejectedPct.toFixed(1)}%)</div>
-            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-500 print:bg-white print:border print:border-black print:text-black"></span> รอ ({pendingPct.toFixed(1)}%)</div>
-          </div>
-        </div>
-
-        {/* Bar Chart */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm print:border-gray-400 print:shadow-none">
-          <h3 className="font-bold text-gray-800 mb-6 text-lg">รายการที่ถูกใช้งานมากที่สุด 5 อันดับแรก</h3>
-          
-          <div className="space-y-4">
-            {topItems.length === 0 ? (
-              <p className="text-gray-500 text-sm text-center py-8">ไม่มีข้อมูลการอนุมัติในช่วงเวลานี้</p>
-            ) : (
-              topItems.map((item, index) => (
-                <div key={index} className="flex flex-col gap-1">
-                  <div className="flex justify-between text-sm font-medium">
-                    <span className="text-gray-700 truncate pr-4">{item.name}</span>
-                    <span className="text-gray-900">{item.count} ครั้ง</span>
-                  </div>
-                  <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden print:border print:border-gray-300 print:bg-transparent">
-                    <div 
-                      className="bg-blue-500 h-full rounded-full print:bg-gray-600" 
-                      style={{ width: `${(item.count / maxUsage) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Footer for print only */}
-      <div className="hidden print:block mt-16 pt-8 border-t border-gray-300">
-        <div className="flex justify-between text-sm text-black">
-          <div className="text-center w-48">
-            <p>ลงชื่อ...................................................</p>
-            <p className="mt-2">(ผู้จัดทำรายงาน)</p>
-          </div>
-          <div className="text-center w-48">
-            <p>ลงชื่อ...................................................</p>
-            <p className="mt-2">(ผู้อำนวยการโรงเรียน)</p>
-          </div>
+        <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 shadow-sm">
+          <p className="text-sm font-medium text-amber-700">อยู่ระหว่างพิจารณา</p>
+          <p className="text-3xl font-bold text-amber-800 mt-2">{pending}</p>
         </div>
       </div>
     </div>
