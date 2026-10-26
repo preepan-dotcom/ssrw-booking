@@ -1,30 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, addDoc, updateDoc } from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  collection, 
+  addDoc, 
+  updateDoc 
+} from 'firebase/firestore';
 import { 
   Calendar, MapPin, Monitor, CheckCircle, XCircle, 
   Clock, Plus, Trash2, LogOut, User as UserIcon, 
-  Menu, X, Bell, Info, Mail, PieChart, Printer, Image as ImageIcon
+  Menu, X, Bell, Info, Mail, PieChart, Printer
 } from 'lucide-react';
+
+// --- รายชื่อผู้ดูแลระบบ (Admin) ---
+const ADMIN_EMAILS = [
+  "admin@ssrw.ac.th",
+  "preepan@ssrw.ac.th" // อีเมลของคุณสำหรับการทดสอบสิทธิ์ผู้ดูแลระบบ
+];
 
 // --- Firebase Initialization ---
 const firebaseConfig = {
-  apiKey: "AIzaSyxxxx...",
-  authDomain: "ssrw-booking-xxx.firebaseapp.com",
-  projectId: "ssrw-booking-xxx",
-  storageBucket: "ssrw-booking-xxx.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef..."
+  apiKey: "AIzaSyCxziIRuocf210AaNQASHAxaGWtcagQj0w",
+  authDomain: "ssrw-booking.firebaseapp.com",
+  databaseURL: "https://ssrw-booking-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "ssrw-booking",
+  storageBucket: "ssrw-booking.firebasestorage.app",
+  messagingSenderId: "207851800955",
+  appId: "1:207851800955:web:9db070bfefb0cd81f5d5de",
+  measurementId: "G-0SVZM8J1E9"
 };
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'ssrw-booking-app';
 
-// --- Base Paths for Firestore ---
-const getPublicCollection = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
-const getPublicDoc = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+// --- Base Collections ---
+const itemsCol = collection(db, 'items');
+const bookingsCol = collection(db, 'bookings');
+const getProfileDoc = (uid) => doc(db, 'profiles', uid);
+const getItemDoc = (id) => doc(db, 'items', id);
+const getBookingDoc = (id) => doc(db, 'bookings', id);
 
 // --- Reusable UI Components ---
 const Toast = ({ message, type, onClose }) => {
@@ -93,59 +119,63 @@ export default function App() {
   // App States
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState(null);
-  const [activeTab, setActiveTab] = useState('browse'); // browse, my-bookings, admin-items, admin-bookings, admin-reports
+  const [activeTab, setActiveTab] = useState('browse');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const showToast = (message, type = 'success') => setToast({ message, type });
 
-  // 1. Firebase Auth Setup (Mandatory Pattern)
+  // 1. Firebase Auth Observer
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        // ตรวจสอบโดเมนอีเมล
+        if (!currentUser.email.endsWith('@ssrw.ac.th')) {
+          showToast('กรุณาใช้อีเมลโรงเรียน (@ssrw.ac.th) เท่านั้น', 'error');
+          await signOut(auth);
+          setUser(null);
+          setProfile(null);
+          setIsLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error("Auth init error:", error);
-      }
-    };
-    initAuth();
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (!currentUser) setIsLoading(false);
+        const role = ADMIN_EMAILS.includes(currentUser.email) ? 'admin' : 'user';
+        const profileData = {
+          email: currentUser.email,
+          displayName: currentUser.displayName || currentUser.email.split('@')[0],
+          photoURL: currentUser.photoURL,
+          role: role,
+          lastLogin: Date.now()
+        };
+
+        try {
+          await setDoc(getProfileDoc(currentUser.uid), profileData, { merge: true });
+        } catch (e) {
+          console.error("Profile sync error:", e);
+        }
+
+        setUser(currentUser);
+        setProfile(profileData);
+
+        if (role === 'admin' && (activeTab === 'browse' || activeTab === 'my-bookings')) {
+          setActiveTab('admin-bookings');
+        }
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // 2. Fetch Data (Requires user)
+  // 2. Fetch Realtime Data from Firestore
   useEffect(() => {
     if (!user) return;
 
-    // Fetch User Profile
-    const profileUnsub = onSnapshot(
-      getPublicDoc('profiles', user.uid),
-      (docSnap) => {
-        if (docSnap.exists()) {
-          const profileData = docSnap.data();
-          setProfile(profileData);
-          if (profileData.role === 'admin' && (activeTab === 'browse' || activeTab === 'my-bookings')) {
-            setActiveTab('admin-bookings');
-          }
-        } else {
-          setProfile(null);
-        }
-        setIsLoading(false);
-      },
-      (err) => console.error("Profile fetch error:", err)
-    );
-
     // Fetch Items
     const itemsUnsub = onSnapshot(
-      getPublicCollection('items'),
+      itemsCol,
       (snapshot) => {
         const itemsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setItems(itemsData);
@@ -155,68 +185,68 @@ export default function App() {
 
     // Fetch Bookings
     const bookingsUnsub = onSnapshot(
-      getPublicCollection('bookings'),
+      bookingsCol,
       (snapshot) => {
-        // Sort in memory (Rule 2: No complex queries)
         const bookingsData = snapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() }))
-          .sort((a, b) => b.createdAt - a.createdAt);
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         setBookings(bookingsData);
       },
       (err) => console.error("Bookings fetch error:", err)
     );
 
     return () => {
-      profileUnsub();
       itemsUnsub();
       bookingsUnsub();
     };
   }, [user]);
 
-  // --- Actions ---
-  const handleSimulatedGoogleLogin = async (email) => {
-    if (!email.endsWith('@ssrw.ac.th')) {
-      showToast('กรุณาใช้อีเมล @ssrw.ac.th เท่านั้น', 'error');
-      return;
-    }
-    
-    // Create or update profile
-    const role = email === 'admin@ssrw.ac.th' ? 'admin' : 'user';
+  // --- Login with Real Google Auth ---
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      hd: 'ssrw.ac.th' // แนะนำให้ใช้โดเมน SSRW เมื่อแสดงหน้าเลือกล็อกอินของ Google
+    });
+
     try {
-      await setDoc(getPublicDoc('profiles', user.uid), {
-        email,
-        role,
-        createdAt: Date.now()
-      });
-      showToast(`เข้าสู่ระบบสำเร็จ (สิทธิ์: ${role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งาน'})`);
+      await signInWithPopup(auth, provider);
+      showToast('เข้าสู่ระบบสำเร็จ');
     } catch (error) {
-      showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
+      console.error("Login error:", error);
+      if (error.code !== 'auth/popup-closed-by-user') {
+        showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
+      }
     }
   };
 
-  const handleLogout = () => {
-    // Since we use anonymous auth under the hood, we just clear the profile doc locally to simulate logout
-    // Or in a real app, sign out. For this demo, we'll just wipe the UI state and let user "re-login"
-    setProfile(null);
-    setActiveTab('browse');
-    showToast('ออกจากระบบแล้ว', 'success');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setActiveTab('browse');
+      showToast('ออกจากระบบเรียบร้อยแล้ว');
+    } catch (error) {
+      showToast('เกิดข้อผิดพลาดในการออกจากระบบ', 'error');
+    }
   };
 
   const simulateEmailNotification = (userEmail, itemName, status) => {
-    // Simulate real-world delay for sending email
     setTimeout(() => {
       const statusText = status === 'approved' ? 'อนุมัติ' : 'ไม่อนุมัติ';
-      showToast(`จำลองส่งอีเมลแจ้งเตือนไปยัง ${userEmail} ว่าการจอง "${itemName}" ถูก${statusText}แล้ว`, 'info');
+      showToast(`ส่งอีเมลแจ้งเตือนไปยัง ${userEmail}: การจอง "${itemName}" ถูก${statusText}แล้ว`, 'info');
     }, 1000);
   };
 
-  // --- Views ---
+  // Loading Screen
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   // Login View
-  if (!profile) {
+  if (!user || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-gray-100">
@@ -226,30 +256,17 @@ export default function App() {
           <h1 className="text-2xl font-bold text-gray-800 mb-2">เข้าสู่ระบบ</h1>
           <p className="text-gray-500 mb-6 text-sm">ระบบจองอาคารสถานที่และอุปกรณ์<br/>โรงเรียนศรีสองรักษ์วิทยา</p>
           
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            handleSimulatedGoogleLogin(e.target.email.value);
-          }} className="space-y-4">
-            <div>
-              <input 
-                type="email" 
-                name="email"
-                placeholder="ชื่อ.นาม@ssrw.ac.th" 
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-left"
-                required
-              />
-            </div>
-            <button 
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-            >
-              <Mail size={20} />
-              เข้าสู่ระบบด้วย Google (จำลอง)
-            </button>
-            <p className="text-xs text-gray-400 mt-4 text-left">
-              *หมายเหตุ: เพื่อทดสอบสิทธิ์ผู้ดูแลระบบ ให้ใช้อีเมล <strong>admin@ssrw.ac.th</strong>
-            </p>
-          </form>
+          <button 
+            onClick={handleGoogleLogin}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3"
+          >
+            <Mail size={20} />
+            เข้าสู่ระบบด้วย Google Account
+          </button>
+          
+          <p className="text-xs text-gray-400 mt-6 text-center">
+            *อนุญาตเฉพาะอีเมลบุคลากร <strong>@ssrw.ac.th</strong> เท่านั้น
+          </p>
         </div>
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       </div>
@@ -362,7 +379,6 @@ const MobileNavBtn = ({ active, onClick, Icon, label }) => (
   </button>
 );
 
-
 // --- Feature Components ---
 
 // 1. User: Browse & Book Items
@@ -378,7 +394,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1048576) { // กำหนดขนาด 1MB เพื่อไม่ให้ Base64 ยาวเกินไป
+      if (file.size > 1048576) {
         showToast('ไฟล์ภาพมีขนาดใหญ่เกินไป (ไม่เกิน 1MB)', 'error');
         return;
       }
@@ -405,7 +421,6 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
       return;
     }
 
-    // ตรวจสอบการจองซ้ำซ้อน (Double-Booking Check)
     const hasOverlap = bookings.some(b => {
       if (b.itemId !== selectedItem.id || b.date !== date || b.status === 'rejected') return false;
       const bStart = parseTime(b.startTime);
@@ -445,7 +460,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     }
 
     try {
-      await addDoc(getPublicCollection('bookings'), bookingData);
+      await addDoc(collection(getFirestore(), 'bookings'), bookingData);
       showToast('ส่งคำขอจองสำเร็จ กรุณารอการอนุมัติ');
       setIsModalOpen(false);
       setLayoutImage(null);
@@ -687,7 +702,7 @@ const UserBookings = ({ bookings }) => {
   );
 };
 
-// 3. Admin: Manage Items (Rooms/Equipment)
+// 3. Admin: Manage Items
 const AdminManageItems = ({ items, showToast }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -720,10 +735,10 @@ const AdminManageItems = ({ items, showToast }) => {
 
     try {
       if (editingItem) {
-        await updateDoc(getPublicDoc('items', editingItem.id), itemData);
+        await updateDoc(getItemDoc(editingItem.id), itemData);
         showToast('อัปเดตข้อมูลสำเร็จ');
       } else {
-        await addDoc(getPublicCollection('items'), itemData);
+        await addDoc(itemsCol, itemData);
         showToast('เพิ่มรายการใหม่สำเร็จ');
       }
       setIsModalOpen(false);
@@ -734,10 +749,8 @@ const AdminManageItems = ({ items, showToast }) => {
   };
 
   const handleDelete = async (id) => {
-    // Note: Normally we'd use a custom confirmation modal, but for safety in this environment we simulate it simply
-    // or provide a soft delete (isActive = false). We will do a hard delete for demonstration.
     try {
-       await deleteDoc(getPublicDoc('items', id));
+       await deleteDoc(getItemDoc(id));
        showToast('ลบรายการสำเร็จ');
     } catch(err) {
        showToast('ไม่สามารถลบรายการได้', 'error');
@@ -855,12 +868,10 @@ const AdminManageItems = ({ items, showToast }) => {
 
 // 4. Admin: Manage Bookings
 const AdminManageBookings = ({ bookings, showToast, simulateEmail }) => {
-  
   const handleUpdateStatus = async (bookingId, newStatus, userEmail, itemName) => {
     try {
-      await updateDoc(getPublicDoc('bookings', bookingId), { status: newStatus });
+      await updateDoc(getBookingDoc(bookingId), { status: newStatus });
       showToast('อัปเดตสถานะเรียบร้อยแล้ว');
-      // จำลองการส่งอีเมลแจ้งเตือนกลับไปยังผู้ใช้งาน
       simulateEmail(userEmail, itemName, newStatus);
     } catch (error) {
       showToast('เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'error');
@@ -950,12 +961,11 @@ const AdminManageBookings = ({ bookings, showToast, simulateEmail }) => {
   );
 };
 
-// 5. Admin: Reports (New Component)
+// 5. Admin: Reports
 const AdminReports = ({ bookings, items }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // 1. Filter Bookings by Date Range
   const filteredBookings = bookings.filter(b => {
     if (!b.date) return false;
     if (startDate && b.date < startDate) return false;
@@ -963,7 +973,6 @@ const AdminReports = ({ bookings, items }) => {
     return true;
   });
 
-  // 2. Calculate Stats
   const total = filteredBookings.length;
   const approved = filteredBookings.filter(b => b.status === 'approved').length;
   const rejected = filteredBookings.filter(b => b.status === 'rejected').length;
@@ -973,7 +982,6 @@ const AdminReports = ({ bookings, items }) => {
   const rejectedPct = total > 0 ? (rejected / total) * 100 : 0;
   const pendingPct = total > 0 ? (pending / total) * 100 : 0;
   
-  // Custom Pie Chart Style using conic-gradient
   const pieStyle = {
     background: total > 0 
       ? `conic-gradient(
@@ -984,7 +992,6 @@ const AdminReports = ({ bookings, items }) => {
       : '#e5e7eb'
   };
 
-  // 3. Calculate Item Usage Frequency
   const itemUsage = {};
   filteredBookings.forEach(b => {
     if (b.status === 'approved') {
@@ -992,14 +999,13 @@ const AdminReports = ({ bookings, items }) => {
     }
   });
 
-  // Sort and prep top items for Bar Chart
   const topItems = Object.entries(itemUsage)
     .map(([itemId, count]) => {
       const item = items.find(i => i.id === itemId);
       return { name: item ? item.name : 'ไม่ทราบชื่อ', count };
     })
     .sort((a, b) => b.count - a.count)
-    .slice(0, 5); // Top 5
+    .slice(0, 5);
 
   const maxUsage = topItems.length > 0 ? topItems[0].count : 1;
 
