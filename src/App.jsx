@@ -52,6 +52,21 @@ const getProfileDoc = (uid) => doc(db, 'profiles', uid);
 const getItemDoc = (id) => doc(db, 'items', id);
 const getBookingDoc = (id) => doc(db, 'bookings', id);
 
+// ==========================================
+// 🚀 ฟังก์ชันส่งแจ้งเตือน LINE (ใช้งานร่วมกัน)
+// ==========================================
+const sendLineMessage = async (msg) => {
+  try {
+    await fetch('/api/send-line', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    });
+  } catch (error) {
+    console.error("Line API Error:", error);
+  }
+};
+
 // --- Reusable UI Components ---
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
@@ -336,7 +351,7 @@ export default function App() {
       {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:m-0 print:max-w-none">
         {!isAdmin && activeTab === 'browse' && <UserBrowseItems items={items} bookings={bookings} user={profile} userId={user.uid} showToast={showToast} />}
-        {!isAdmin && activeTab === 'my-bookings' && <UserBookings bookings={bookings.filter(b => b.userId === user.uid)} items={items} />}
+        {!isAdmin && activeTab === 'my-bookings' && <UserBookings bookings={bookings.filter(b => b.userId === user.uid)} />}
         {activeTab === 'calendar' && <CalendarView bookings={bookings} items={items} />}
         
         {isAdmin && activeTab === 'admin-items' && <AdminManageItems items={items} showToast={showToast} />}
@@ -370,7 +385,6 @@ const MobileNavBtn = ({ active, onClick, Icon, label }) => (
   </button>
 );
 
-// 1. User: Browse & Book Items
 // --- รายชื่อฝ่ายงาน ---
 const DEPARTMENTS = [
   "บริหารงานวิชาการ",
@@ -418,19 +432,6 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   const parseTime = (timeStr) => {
     const [h, m] = timeStr.split(':').map(Number);
     return h * 60 + m;
-  };
-
-const sendLineMessage = async (msg) => {
-    try {
-      // เรียกใช้ไฟล์ send-line.js ในโฟลเดอร์ api
-      await fetch('/api/send-line', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg })
-      });
-    } catch (error) {
-      console.error("Line API Error:", error);
-    }
   };
 
   const handleBook = async (e) => {
@@ -488,6 +489,11 @@ const sendLineMessage = async (msg) => {
 
     try {
       await addDoc(bookingsCol, bookingData);
+
+      // ส่งแจ้งเตือน LINE
+      const notifyMsg = `🔔 มีคำขอจองใหม่!\nสถานที่: ${selectedItem.name}\nผู้จอง: ${user.displayName || user.email}\nฝ่าย: ${department}\nวันที่: ${date}\nเวลา: ${startTime} - ${endTime} น.`;
+      sendLineMessage(notifyMsg);
+
       showToast('ส่งคำขอจองสำเร็จ (เสนอต่อหัวหน้าฝ่าย)');
       setIsModalOpen(false);
       setLayoutImage(null);
@@ -498,6 +504,7 @@ const sendLineMessage = async (msg) => {
       setIsSubmitting(false);
     }
   };
+
   const itemBookings = selectedItem 
     ? bookings.filter(b => b.itemId === selectedItem.id && b.status !== 'rejected' && (!selectedDate || b.date === selectedDate)).sort((a, b) => parseTime(a.startTime) - parseTime(b.startTime))
     : [];
@@ -785,10 +792,10 @@ const CalendarView = ({ bookings, items }) => {
                       <Badge status={b.status} />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-  <strong>ผู้ขอจอง:</strong> {b.displayName || b.userEmail} 
-  {b.department && <span className="text-blue-700 font-medium"> ({b.department})</span>} 
-  | <strong>เวลา:</strong> {b.startTime} - {b.endTime} น.
-</p>
+                      <strong>ผู้ขอจอง:</strong> {b.displayName || b.userEmail} 
+                      {b.department && <span className="text-blue-700 font-medium"> ({b.department})</span>} 
+                      | <strong>เวลา:</strong> {b.startTime} - {b.endTime} น.
+                    </p>
                     <p className="text-xs text-gray-600 mt-1"><strong>วัตถุประสงค์:</strong> {b.purpose}</p>
                   </div>
                 </div>
@@ -806,6 +813,20 @@ const AdminManageBookings = ({ bookings, showToast }) => {
   const handleUpdateStatus = async (bookingId, newStatus) => {
     try {
       await updateDoc(getBookingDoc(bookingId), { status: newStatus });
+      
+      // ดึงข้อมูลรายการที่กำลังอัปเดตเพื่อเอาชื่อมาแสดงใน LINE
+      const currentBooking = bookings.find(b => b.id === bookingId);
+      
+      let statusText = "";
+      if (newStatus === 'pending_deputy') statusText = "✅ หัวหน้าฝ่ายรับทราบแล้ว (รอรอง ผอ. อนุมัติ)";
+      else if (newStatus === 'approved') statusText = "🎉 รอง ผอ. อนุมัติเรียบร้อยแล้ว";
+      else if (newStatus === 'rejected') statusText = "❌ ไม่อนุมัติ/ยกเลิกคำขอ";
+
+      if (currentBooking && statusText) {
+        const notifyMsg = `📝 อัปเดตสถานะการจอง\nสถานที่: ${currentBooking.itemName}\nผู้จอง: ${currentBooking.displayName || currentBooking.userEmail}\nสถานะ: ${statusText}`;
+        sendLineMessage(notifyMsg);
+      }
+
       showToast('อัปเดตสถานะเรียบร้อยแล้ว');
     } catch (error) {
       showToast('เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'error');
@@ -850,15 +871,15 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                 {bookings.map(b => (
                   <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4">
-  <p className="font-bold text-blue-700 mb-1">{b.itemName}</p>
-  <p className="text-xs font-medium text-gray-800">{b.displayName || b.userEmail}</p>
-  {/* แสดงชื่อฝ่ายงาน/กลุ่มสาระ */}
-  {b.department && (
-    <span className="inline-block mt-1 text-[11px] font-medium text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-      {b.department}
-    </span>
-  )}
-</td>
+                      <p className="font-bold text-blue-700 mb-1">{b.itemName}</p>
+                      <p className="text-xs font-medium text-gray-800">{b.displayName || b.userEmail}</p>
+                      {/* แสดงชื่อฝ่ายงาน/กลุ่มสาระ */}
+                      {b.department && (
+                        <span className="inline-block mt-1 text-[11px] font-medium text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                          {b.department}
+                        </span>
+                      )}
+                    </td>
                     <td className="p-4">
                       <p className="text-sm font-medium text-gray-800">{b.date}</p>
                       <p className="text-xs text-gray-500 mt-1">{b.startTime} - {b.endTime}</p>

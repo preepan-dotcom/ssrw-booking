@@ -1,40 +1,25 @@
 export default async function handler(req, res) {
-  // รับเฉพาะ Method POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-  const { message } = req.body;
-  
-  // ดึงค่า Token จาก Environment Variables ของ Vercel เพียงตัวเดียว
-  const LINE_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  // นำ Token จากข้อ 1 มาใส่ในเครื่องหมายคำพูดด้านล่าง
+  const token = "wvSqvZmylylzvt+/tdnDuOQYKRSvhG+Rja5QHqAy1Cki5xPEnqxaxkbvVEYsHrDse1hCLUCSa387YSLGKCMjU0PyokJUzQkt2gIj861ceQdELWgfAmFCXEcKQX5U7w4JCeVvrY3ljojKu4phnOee8QdB04t89/1O/w1cDnyilFU="
+  const message = req.body.message;
 
   try {
-    // เปลี่ยน endpoint จาก push เป็น broadcast
-    const response = await fetch('https://api.line.me/v2/bot/message/broadcast', {
+    const response = await fetch('https://notify-api.line.me/api/notify', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LINE_TOKEN}`
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({
-        messages: [
-          { 
-            type: 'text', 
-            text: message 
-          }
-        ]
-      })
+      // LINE Notify บังคับให้ส่งข้อมูลรูปแบบ URLSearchParams
+      body: new URLSearchParams({ message: message })
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`LINE API Error: ${JSON.stringify(errorData)}`);
-    }
-
-    res.status(200).json({ success: true });
+    
+    const data = await response.json();
+    res.status(200).json(data);
   } catch (error) {
-    console.error('LINE API Error:', error);
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ error: 'Failed to send notification' });
   }
 }
