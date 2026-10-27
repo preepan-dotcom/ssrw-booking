@@ -772,8 +772,10 @@ const CalendarView = ({ bookings, items }) => {
                       <Badge status={b.status} />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      <strong>ผู้ขอจอง:</strong> {b.displayName || b.userEmail} | <strong>เวลา:</strong> {b.startTime} - {b.endTime} น.
-                    </p>
+  <strong>ผู้ขอจอง:</strong> {b.displayName || b.userEmail} 
+  {b.department && <span className="text-blue-700 font-medium"> ({b.department})</span>} 
+  | <strong>เวลา:</strong> {b.startTime} - {b.endTime} น.
+</p>
                     <p className="text-xs text-gray-600 mt-1"><strong>วัตถุประสงค์:</strong> {b.purpose}</p>
                   </div>
                 </div>
@@ -835,9 +837,15 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                 {bookings.map(b => (
                   <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4">
-                      <p className="font-bold text-blue-700 mb-1">{b.itemName}</p>
-                      <p className="text-xs font-medium text-gray-800">{b.displayName || b.userEmail}</p>
-                    </td>
+  <p className="font-bold text-blue-700 mb-1">{b.itemName}</p>
+  <p className="text-xs font-medium text-gray-800">{b.displayName || b.userEmail}</p>
+  {/* แสดงชื่อฝ่ายงาน/กลุ่มสาระ */}
+  {b.department && (
+    <span className="inline-block mt-1 text-[11px] font-medium text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+      {b.department}
+    </span>
+  )}
+</td>
                     <td className="p-4">
                       <p className="text-sm font-medium text-gray-800">{b.date}</p>
                       <p className="text-xs text-gray-500 mt-1">{b.startTime} - {b.endTime}</p>
