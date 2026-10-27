@@ -373,7 +373,7 @@ const MobileNavBtn = ({ active, onClick, Icon, label }) => (
 // 1. User: Browse & Book Items
 // --- รายชื่อฝ่ายงาน ---
 const DEPARTMENTS = [
-  "บริหารงานวิชาการ",
+    "บริหารงานวิชาการ",
   "บริหารงานงบประมาณ",
   "บริหารงานบุคคล",
   "บริหารงานทั่วไป",
@@ -585,8 +585,8 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
 
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-800">ฝ่ายงาน/กลุ่มสาระที่ขอใช้งาน</label>
-            <select name="department" required className="w-full px-3 py-2 border border-gray-400 rounded-md bg-white focus:outline-none focus:border-blue-500">
-              <option value="" disabled defaultValue>-- เลือกฝ่ายงาน/กลุ่มสาระ --</option>
+            <select name="department" required defaultValue="" className="w-full px-3 py-2 border border-gray-400 rounded-md bg-white focus:outline-none focus:border-blue-500">
+              <option value="" disabled>-- กรุณาเลือกฝ่ายงาน/กลุ่มสาระ --</option>
               {DEPARTMENTS.map(dep => (
                 <option key={dep} value={dep}>{dep}</option>
               ))}
@@ -794,6 +794,18 @@ const AdminManageBookings = ({ bookings, showToast }) => {
     }
   };
 
+  // ฟังก์ชันใหม่สำหรับลบรายการจองทิ้ง
+  const handleDeleteBooking = async (bookingId) => {
+    if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการจองนี้? (ข้อมูลจะถูกลบถาวร)')) {
+      try {
+        await deleteDoc(getBookingDoc(bookingId));
+        showToast('ลบรายการจองเรียบร้อยแล้ว');
+      } catch (error) {
+        showToast('เกิดข้อผิดพลาดในการลบรายการ', 'error');
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 print:hidden">
       <div>
@@ -810,7 +822,7 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                   <th className="p-4 font-semibold">วันและเวลา</th>
                   <th className="p-4 font-semibold">วัตถุประสงค์</th>
                   <th className="p-4 font-semibold text-center">สถานะปัจจุบัน</th>
-                  <th className="p-4 font-semibold text-center">การอนุมัติ</th>
+                  <th className="p-4 font-semibold text-center">การจัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -870,8 +882,29 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                         </div>
                       )}
 
+                      {/* ดำเนินการแล้ว (อนุมัติ / ไม่อนุมัติ) จะแสดงปุ่มยกเลิกและลบ */}
                       {(b.status === 'approved' || b.status === 'rejected') && (
-                        <span className="text-xs text-gray-400">ดำเนินการแล้ว</span>
+                        <div className="flex justify-center items-center gap-2">
+                          <span className="text-xs text-gray-400 mr-1 hidden sm:inline-block">ดำเนินการแล้ว</span>
+                          
+                          {b.status === 'approved' && (
+                            <button 
+                              onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                              className="text-amber-600 bg-amber-50 hover:bg-amber-100 p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-amber-200"
+                              title="ยกเลิกการอนุมัติ (เปลี่ยนเป็นไม่อนุมัติ)"
+                            >
+                              <XCircle size={14} /> ยกเลิก
+                            </button>
+                          )}
+                          
+                          <button 
+                            onClick={() => handleDeleteBooking(b.id)}
+                            className="text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-red-200"
+                            title="ลบรายการนี้ถาวร"
+                          >
+                            <Trash2 size={14} /> ลบ
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
