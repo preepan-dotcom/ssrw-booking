@@ -28,12 +28,12 @@ import {
 // ==========================================
 const HEAD_ADMIN_EMAILS = [
   "head.general@ssrw.ac.th", 
-  "preepan@ssrw.ac.th" // หัวหน้าฝ่ายบริหารงานทั่วไป
+  "preepan@ssrw.ac.th"
 ];
 
 const DEPUTY_ADMIN_EMAILS = [
   "deputy.director@ssrw.ac.th", 
-  "preepan@ssrw.ac.th" // รองผู้อำนวยการ
+  "preepan@ssrw.ac.th"
 ];
 
 const SUPER_ADMIN_EMAILS = [
@@ -48,6 +48,25 @@ const TEACHERS = [
   "นายพีรพัฒน์ พลเรือง (ครูแพนเตอร์)",
   "นายพงศ์พล พากุล (ครูแม็ก)",
   "นายธณกร กูฎโสม (ครูอั๋น)"
+];
+
+// --- รายชื่อฝ่ายงานและกลุ่มสาระ ---
+const DEPARTMENTS = [
+  "ฝ่ายบริหารงานวิชาการ",
+  "ฝ่ายบริหารงานบุคคล",
+  "ฝ่ายบริหารงานทั่วไป",
+  "ฝ่ายบริหารงานนโยบายและแผน",
+  "ฝ่ายบริหารงานการเงินและพัสดุ",
+  "ฝ่ายบริหารงานกิจการนักเรียน",
+  "ฝ่ายบริหารงานระบบดูแลช่วยเหลือนักเรียน",
+  "กลุ่มสาระการเรียนรู้ภาษาไทย",
+  "กลุ่มสาระการเรียนรู้คณิตศาสตร์",
+  "กลุ่มสาระการเรียนรู้วิทยาศาสตร์และเทคโนโลยี",
+  "กลุ่มสาระการเรียนรู้สังคมศึกษา ศาสนา และวัฒนธรรม",
+  "กลุ่มสาระการเรียนรู้สุขศึกษาและพลศึกษา",
+  "กลุ่มสาระการเรียนรู้ศิลปะ",
+  "กลุ่มสาระการเรียนรู้การงานอาชีพ",
+  "กลุ่มสาระการเรียนรู้ภาษาต่างประเทศ"
 ];
 
 // --- Firebase Initialization ---
@@ -136,7 +155,7 @@ const Badge = ({ status }) => {
     pending_head: 'รอหัวหน้าฝ่ายรับทราบ',
     pending_deputy: 'รอรองผู้อำนวยการอนุมัติ',
     approved: 'อนุมัติเรียบร้อย',
-    rejected: 'ไม่อนุมัติ',
+    rejected: 'ไม่อนุมัติ/ยกเลิก',
   };
 
   return (
@@ -340,6 +359,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     const startTime = form.startTime.value;
     const endTime = form.endTime.value;
     const date = form.date.value;
+    const department = form.department.value;
 
     if (parseTime(startTime) >= parseTime(endTime)) { showToast('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น', 'error'); return; }
 
@@ -351,15 +371,15 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
       await addDoc(bookingsCol, {
         itemId: selectedItem.id, itemName: selectedItem.name,
         userId: userId, userEmail: user.email, displayName: user.displayName || user.email.split('@')[0],
+        department: department, // เก็บข้อมูลฝ่ายงาน
         date, startTime, endTime, purpose: form.purpose.value,
         status: 'pending_head',
         createdAt: Date.now()
       });
       showToast('ส่งคำขอสำเร็จ (รอหัวหน้าฝ่ายรับทราบ)');
       
-      // 🔔 เพิ่มโค้ดแจ้งเตือน LINE เมื่อมีการจอง
       await notifyLine(
-        `🔔 มีคำขอจองใหม่!\nรายการ: ${selectedItem.name}\nวันที่: ${date}\nเวลา: ${startTime} - ${endTime} น.\nผู้ขอ: ${user.displayName || user.email}`
+        `🔔 มีคำขอจองใหม่!\nรายการ: ${selectedItem.name}\nวันที่: ${date}\nเวลา: ${startTime} - ${endTime} น.\nฝ่าย/กลุ่มสาระ: ${department}\nผู้ขอ: ${user.displayName || user.email}`
       );
 
       setIsModalOpen(false);
@@ -408,7 +428,19 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
             <div><label className="block text-sm font-medium mb-1">เวลาเริ่ม</label><input type="time" name="startTime" required className="w-full px-4 py-2 border rounded-xl" /></div>
             <div><label className="block text-sm font-medium mb-1">เวลาสิ้นสุด</label><input type="time" name="endTime" required className="w-full px-4 py-2 border rounded-xl" /></div>
           </div>
-          <div><label className="block text-sm font-medium mb-1">วัตถุประสงค์</label><textarea name="purpose" required rows="2" className="w-full px-4 py-2 border rounded-xl"></textarea></div>
+          
+          {/* ส่วนที่เพิ่มใหม่: Dropdown ฝ่ายงาน/กลุ่มสาระ */}
+          <div>
+            <label className="block text-sm font-medium mb-1">ฝ่ายงาน/กลุ่มสาระที่ขอใช้งาน</label>
+            <select name="department" required className="w-full px-4 py-2 border rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="" disabled defaultValue>-- เลือกฝ่ายงาน/กลุ่มสาระ --</option>
+              {DEPARTMENTS.map(dep => (
+                <option key={dep} value={dep}>{dep}</option>
+              ))}
+            </select>
+          </div>
+
+          <div><label className="block text-sm font-medium mb-1">รายละเอียด/วัตถุประสงค์</label><textarea name="purpose" required rows="2" className="w-full px-4 py-2 border rounded-xl"></textarea></div>
           <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium">{isSubmitting ? 'กำลังส่งข้อมูล...' : 'ส่งคำขอจอง'}</button>
         </form>
       </Modal>
@@ -416,7 +448,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   );
 };
 
-// --- Admin: Manage Bookings (แสดงปุ่มตามสิทธิ์อีเมล & ยืนยัน) ---
+// --- Admin: Manage Bookings ---
 const AdminManageBookings = ({ bookings, userProfile, showToast }) => {
   const [actionModal, setActionModal] = useState({ isOpen: false, type: '', bookingId: null, bookingName: '' });
   const [assignedTeacher, setAssignedTeacher] = useState('');
@@ -440,17 +472,16 @@ const AdminManageBookings = ({ bookings, userProfile, showToast }) => {
       updateData.status = 'approved';
       updateData.approvedAt = Date.now();
       statusText = '🎉 รอง ผอ. อนุมัติเรียบร้อย';
-    } else if (type === 'reject') {
+    } else if (type === 'reject' || type === 'revoke') {
       updateData.status = 'rejected';
       updateData.rejectedAt = Date.now();
-      statusText = '❌ คำขอถูกปฏิเสธ';
+      statusText = type === 'revoke' ? '❌ ยกเลิกการอนุมัติแล้ว' : '❌ คำขอถูกปฏิเสธ';
     }
 
     try {
       await updateDoc(getBookingDoc(bookingId), updateData);
       showToast('ดำเนินการเรียบร้อยแล้ว');
       
-      // 📢 เพิ่มโค้ดแจ้งเตือน LINE เมื่อมีการอัปเดตสถานะ
       await notifyLine(
         `📢 อัปเดตสถานะการจอง\nรายการ: ${actionModal.bookingName}\nสถานะ: ${statusText}\nผู้ดำเนินการ: ${userProfile.displayName || userProfile.email.split('@')[0]}`
       );
@@ -476,7 +507,7 @@ const AdminManageBookings = ({ bookings, userProfile, showToast }) => {
               <th className="p-4 font-semibold">วันและเวลา</th>
               <th className="p-4 font-semibold">รายละเอียด/ผู้มอบหมาย</th>
               <th className="p-4 font-semibold text-center">สถานะ</th>
-              <th className="p-4 font-semibold text-center">การอนุมัติ</th>
+              <th className="p-4 font-semibold text-center">การดำเนินการ</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -485,7 +516,9 @@ const AdminManageBookings = ({ bookings, userProfile, showToast }) => {
               <tr key={b.id} className="hover:bg-gray-50">
                 <td className="p-4">
                   <p className="font-bold text-blue-700">{b.itemName}</p>
-                  <p className="text-xs text-gray-600">{b.displayName}</p>
+                  <p className="text-xs text-gray-800 mt-1">{b.displayName}</p>
+                  {/* แสดงชื่อฝ่ายงาน/กลุ่มสาระ */}
+                  {b.department && <p className="text-[11px] text-gray-500 bg-gray-100 inline-block px-1.5 py-0.5 rounded mt-1">{b.department}</p>}
                 </td>
                 <td className="p-4 text-sm text-gray-800">{b.date}<br/><span className="text-xs text-gray-500">{b.startTime} - {b.endTime}</span></td>
                 <td className="p-4 text-sm">
@@ -509,7 +542,14 @@ const AdminManageBookings = ({ bookings, userProfile, showToast }) => {
                     </div>
                   )}
 
-                  {(b.status === 'approved' || b.status === 'rejected') && <span className="text-xs text-gray-400">ดำเนินการแล้ว</span>}
+                  {b.status === 'approved' && (userProfile.role === 'admin' || userProfile.isHead || userProfile.isDeputy) && (
+                    <div className="flex justify-center flex-col items-center gap-1">
+                      <span className="text-xs text-gray-400">ดำเนินการแล้ว</span>
+                      <button onClick={() => openActionModal(b, 'revoke')} className="text-[10px] text-red-500 hover:text-red-700 underline mt-1">ยกเลิกอนุมัติ</button>
+                    </div>
+                  )}
+
+                  {b.status === 'rejected' && <span className="text-xs text-gray-400">ดำเนินการแล้ว</span>}
                   {b.status === 'pending_head' && !userProfile.isHead && <span className="text-xs text-gray-400">รอหัวหน้าฝ่าย</span>}
                   {b.status === 'pending_deputy' && !userProfile.isDeputy && <span className="text-xs text-gray-400">รอรอง ผอ.</span>}
 
@@ -524,10 +564,9 @@ const AdminManageBookings = ({ bookings, userProfile, showToast }) => {
       <Modal isOpen={actionModal.isOpen} onClose={() => setActionModal({ isOpen: false, type: '', bookingId: null })} title="ยืนยันการดำเนินการ">
         <div className="space-y-4">
           <p className="text-gray-700 text-sm">
-            คุณต้องการ <strong>{actionModal.type === 'acknowledge' ? 'รับทราบ' : actionModal.type === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'}</strong> คำขอจอง <strong>{actionModal.bookingName}</strong> ใช่หรือไม่?
+            คุณต้องการ <strong>{actionModal.type === 'acknowledge' ? 'รับทราบ' : actionModal.type === 'approve' ? 'อนุมัติ' : actionModal.type === 'revoke' ? 'ยกเลิกการอนุมัติ' : 'ปฏิเสธ'}</strong> คำขอจอง <strong>{actionModal.bookingName}</strong> ใช่หรือไม่?
           </p>
           
-          {/* บังคับเลือกครูผู้รับมอบหมายงาน เมื่อกดรับทราบ (หัวหน้าฝ่าย) */}
           {actionModal.type === 'acknowledge' && (
             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-2">
               <label className="block text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2"><UserPlus size={16}/> เลือกครูผู้รับมอบหมายงาน</label>
@@ -543,11 +582,11 @@ const AdminManageBookings = ({ bookings, userProfile, showToast }) => {
           )}
 
           <div className="pt-4 flex gap-3">
-            <button onClick={() => setActionModal({ isOpen: false, type: '', bookingId: null })} className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium transition-colors">ยกเลิก</button>
+            <button onClick={() => setActionModal({ isOpen: false, type: '', bookingId: null })} className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium transition-colors">ปิด/ยกเลิก</button>
             <button 
               onClick={confirmAction} 
               disabled={actionModal.type === 'acknowledge' && !assignedTeacher}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors disabled:opacity-50"
+              className={`flex-1 px-4 py-2 text-white rounded-xl font-medium transition-colors disabled:opacity-50 ${actionModal.type === 'revoke' || actionModal.type === 'reject' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
               ยืนยันการดำเนินการ
             </button>
@@ -558,7 +597,7 @@ const AdminManageBookings = ({ bookings, userProfile, showToast }) => {
   );
 };
 
-// --- Calendar View (เพิ่มแสดงผู้มอบหมายงาน) ---
+// --- Calendar View ---
 const CalendarView = ({ bookings }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayBookings, setSelectedDayBookings] = useState([]);
@@ -624,7 +663,7 @@ const CalendarView = ({ bookings }) => {
               {selectedDayBookings.map(b => (
                 <div key={b.id} className="p-4 rounded-xl border bg-gray-50">
                   <div className="flex items-center gap-2 mb-1"><span className="font-bold text-gray-800">{b.itemName}</span><Badge status={b.status} /></div>
-                  <p className="text-xs text-gray-600"><strong>เวลา:</strong> {b.startTime} - {b.endTime} | <strong>ผู้ขอ:</strong> {b.displayName}</p>
+                  <p className="text-xs text-gray-600"><strong>เวลา:</strong> {b.startTime} - {b.endTime} | <strong>ผู้ขอ:</strong> {b.displayName} {b.department && `(${b.department})`}</p>
                   {b.assignedTeacher && <p className="text-xs text-blue-600 mt-1 font-medium"><UserPlus size={14} className="inline mr-1"/> ผู้ดูแล: {b.assignedTeacher}</p>}
                 </div>
               ))}
@@ -636,7 +675,7 @@ const CalendarView = ({ bookings }) => {
   );
 };
 
-// --- User Bookings, Admin Items (ยังคงเดิม) ---
+// --- User Bookings ---
 const UserBookings = ({ bookings }) => (
   <div className="bg-white rounded-2xl shadow-sm border p-6">
     <h2 className="text-2xl font-bold mb-4">ประวัติการจอง</h2>
@@ -646,6 +685,7 @@ const UserBookings = ({ bookings }) => (
         <div key={b.id} className="p-4 border rounded-xl flex justify-between items-center">
           <div>
             <p className="font-bold">{b.itemName} <span className="text-sm font-normal text-gray-500">({b.date})</span></p>
+            {b.department && <p className="text-xs text-gray-500">{b.department}</p>}
             {b.assignedTeacher && <p className="text-xs text-blue-600 mt-1">ผู้รับมอบหมายงาน: {b.assignedTeacher}</p>}
           </div>
           <Badge status={b.status} />
@@ -656,7 +696,7 @@ const UserBookings = ({ bookings }) => (
 );
 const AdminManageItems = () => <div className="p-8 text-center text-gray-500">สำหรับจัดการเพิ่ม/ลบ สถานที่ (โค้ดมาตรฐานถูกละไว้เพื่อความกระชับ)</div>;
 
-// --- Admin: Reports (เพิ่มตารางแสดงผู้รับมอบหมายงาน) ---
+// --- Admin: Reports ---
 const AdminReports = ({ bookings }) => {
   const total = bookings.length;
   const approved = bookings.filter(b => b.status === 'approved').length;
@@ -672,7 +712,7 @@ const AdminReports = ({ bookings }) => {
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-5 rounded-2xl border shadow-sm"><p className="text-sm text-gray-500">คำขอทั้งหมด</p><p className="text-3xl font-bold">{total}</p></div>
         <div className="bg-green-50 p-5 rounded-2xl border-green-100 border shadow-sm"><p className="text-sm text-green-700">อนุมัติแล้ว</p><p className="text-3xl font-bold text-green-800">{approved}</p></div>
-        <div className="bg-red-50 p-5 rounded-2xl border-red-100 border shadow-sm"><p className="text-sm text-red-700">ไม่อนุมัติ</p><p className="text-3xl font-bold text-red-800">{rejected}</p></div>
+        <div className="bg-red-50 p-5 rounded-2xl border-red-100 border shadow-sm"><p className="text-sm text-red-700">ไม่อนุมัติ/ยกเลิก</p><p className="text-3xl font-bold text-red-800">{rejected}</p></div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -681,7 +721,7 @@ const AdminReports = ({ bookings }) => {
             <tr className="bg-gray-100 text-gray-700">
               <th className="p-4">วัน/เวลา</th>
               <th className="p-4">สถานที่</th>
-              <th className="p-4">ผู้ขอ</th>
+              <th className="p-4">ผู้ขอ / ฝ่ายงาน</th>
               <th className="p-4">ผู้รับมอบหมายงาน</th>
               <th className="p-4 text-center">สถานะ</th>
             </tr>
@@ -691,7 +731,10 @@ const AdminReports = ({ bookings }) => {
               <tr key={b.id}>
                 <td className="p-4">{b.date} <br/> {b.startTime}-{b.endTime}</td>
                 <td className="p-4 font-medium">{b.itemName}</td>
-                <td className="p-4">{b.displayName}</td>
+                <td className="p-4">
+                  {b.displayName}
+                  {b.department && <span className="block text-xs text-gray-500 mt-0.5">{b.department}</span>}
+                </td>
                 <td className="p-4 text-blue-700 font-medium">{b.assignedTeacher || '-'}</td>
                 <td className="p-4 text-center"><Badge status={b.status} /></td>
               </tr>
