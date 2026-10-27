@@ -53,17 +53,24 @@ const getItemDoc = (id) => doc(db, 'items', id);
 const getBookingDoc = (id) => doc(db, 'bookings', id);
 
 // ==========================================
-// 🚀 ฟังก์ชันส่งแจ้งเตือน LINE (ใช้งานร่วมกัน)
+// 🚀 ฟังก์ชันส่งแจ้งเตือน LINE (อัปเดตให้รองรับการเช็ค Error)
 // ==========================================
 const sendLineMessage = async (msg) => {
   try {
-    await fetch('/api/send-line', {
+    const response = await fetch('/api/send-line', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg })
     });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Line API Error (Response):", errorData);
+    } else {
+      console.log("ส่งแจ้งเตือน LINE สำเร็จ!");
+    }
   } catch (error) {
-    console.error("Line API Error:", error);
+    console.error("Line API Fetch Error:", error);
   }
 };
 
@@ -133,7 +140,6 @@ export default function App() {
   const [items, setItems] = useState([]);
   const [bookings, setBookings] = useState([]);
   
-  // App States
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState('browse');
@@ -141,7 +147,6 @@ export default function App() {
 
   const showToast = (message, type = 'success') => setToast({ message, type });
 
-  // 1. Firebase Auth Observer
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -183,9 +188,8 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [activeTab]);
 
-  // 2. Fetch Realtime Data from Firestore
   useEffect(() => {
     if (!user) return;
 
@@ -215,7 +219,6 @@ export default function App() {
     };
   }, [user]);
 
-  // Login / Logout
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ hd: 'ssrw.ac.th' });
@@ -278,7 +281,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      {/* Navbar */}
       <header className="bg-white shadow-sm sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -292,7 +294,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Desktop Nav */}
             <nav className="hidden md:flex space-x-1">
               {!isAdmin && (
                 <>
@@ -326,7 +327,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Mobile Nav */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-white border-t p-2 space-y-1 shadow-lg absolute w-full print:hidden">
              {!isAdmin && (
@@ -348,7 +348,6 @@ export default function App() {
         )}
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:m-0 print:max-w-none">
         {!isAdmin && activeTab === 'browse' && <UserBrowseItems items={items} bookings={bookings} user={profile} userId={user.uid} showToast={showToast} />}
         {!isAdmin && activeTab === 'my-bookings' && <UserBookings bookings={bookings.filter(b => b.userId === user.uid)} />}
@@ -364,7 +363,6 @@ export default function App() {
   );
 }
 
-// Nav Buttons
 const NavBtn = ({ active, onClick, Icon, label }) => (
   <button 
     onClick={onClick}
@@ -385,7 +383,6 @@ const MobileNavBtn = ({ active, onClick, Icon, label }) => (
   </button>
 );
 
-// --- รายชื่อฝ่ายงาน ---
 const DEPARTMENTS = [
   "บริหารงานวิชาการ",
   "บริหารงานงบประมาณ",
@@ -406,7 +403,7 @@ const DEPARTMENTS = [
   "อื่นๆ"
 ];
 
-// 1. User: Browse & Book Items
+// --- 1. User: Browse & Book Items ---
 const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -440,7 +437,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     const startTime = form.startTime.value;
     const endTime = form.endTime.value;
     const date = form.date.value;
-    const department = form.department.value; // รับค่าฝ่ายงาน
+    const department = form.department.value;
 
     if (parseTime(startTime) >= parseTime(endTime)) {
       showToast('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น', 'error');
@@ -469,7 +466,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
       userId: userId,
       userEmail: user.email,
       displayName: user.displayName || user.email.split('@')[0],
-      department: department, // บันทึกลงฐานข้อมูล
+      department: department,
       date: date,
       startTime: startTime,
       endTime: endTime,
@@ -490,9 +487,9 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     try {
       await addDoc(bookingsCol, bookingData);
 
-      // ส่งแจ้งเตือน LINE
-      const notifyMsg = `🔔 มีคำขอจองใหม่!\nสถานที่: ${selectedItem.name}\nผู้จอง: ${user.displayName || user.email}\nฝ่าย: ${department}\nวันที่: ${date}\nเวลา: ${startTime} - ${endTime} น.`;
-      sendLineMessage(notifyMsg);
+      // ยิงแจ้งเตือน LINE พร้อม await
+      const notifyMsg = `🔔 มีคำขอจองใหม่เข้าสู่ระบบ!\n\n📌 สถานที่: ${selectedItem.name}\n👤 ผู้จอง: ${user.displayName || user.email}\n🏷️ ฝ่าย: ${department}\n📅 วันที่: ${date}\n⏰ เวลา: ${startTime} - ${endTime} น.\n\nกรุณาเข้าสู่ระบบเพื่อตรวจสอบครับ`;
+      await sendLineMessage(notifyMsg);
 
       showToast('ส่งคำขอจองสำเร็จ (เสนอต่อหัวหน้าฝ่าย)');
       setIsModalOpen(false);
@@ -680,7 +677,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   );
 };
 
-// 2. Calendar View (หน้าปฏิทินแสดงการใช้งานสถานที่)
+// --- 2. Calendar View ---
 const CalendarView = ({ bookings, items }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayBookings, setSelectedDayBookings] = useState([]);
@@ -734,12 +731,10 @@ const CalendarView = ({ bookings, items }) => {
         </div>
 
         <div className="grid grid-cols-7 gap-2 min-w-[600px]">
-          {/* Empty cells for preceding month */}
           {Array.from({ length: firstDayOfWeek }).map((_, i) => (
             <div key={`empty-${i}`} className="h-24 bg-gray-50/50 rounded-xl"></div>
           ))}
 
-          {/* Days of current month */}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -773,7 +768,6 @@ const CalendarView = ({ bookings, items }) => {
         </div>
       </div>
 
-      {/* Selected Day Details */}
       {selectedDayStr && (
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -808,13 +802,12 @@ const CalendarView = ({ bookings, items }) => {
   );
 };
 
-// 3. Admin: Manage Bookings (อนุมัติ 2 ขั้นตอน)
+// --- 3. Admin: Manage Bookings ---
 const AdminManageBookings = ({ bookings, showToast }) => {
   const handleUpdateStatus = async (bookingId, newStatus) => {
     try {
       await updateDoc(getBookingDoc(bookingId), { status: newStatus });
       
-      // ดึงข้อมูลรายการที่กำลังอัปเดตเพื่อเอาชื่อมาแสดงใน LINE
       const currentBooking = bookings.find(b => b.id === bookingId);
       
       let statusText = "";
@@ -823,8 +816,9 @@ const AdminManageBookings = ({ bookings, showToast }) => {
       else if (newStatus === 'rejected') statusText = "❌ ไม่อนุมัติ/ยกเลิกคำขอ";
 
       if (currentBooking && statusText) {
-        const notifyMsg = `📝 อัปเดตสถานะการจอง\nสถานที่: ${currentBooking.itemName}\nผู้จอง: ${currentBooking.displayName || currentBooking.userEmail}\nสถานะ: ${statusText}`;
-        sendLineMessage(notifyMsg);
+        // ยิงแจ้งเตือน LINE พร้อม await
+        const notifyMsg = `📝 มีการอัปเดตสถานะการจอง\n\n📌 สถานที่: ${currentBooking.itemName}\n👤 ผู้จอง: ${currentBooking.displayName || currentBooking.userEmail}\n📋 สถานะใหม่: ${statusText}`;
+        await sendLineMessage(notifyMsg);
       }
 
       showToast('อัปเดตสถานะเรียบร้อยแล้ว');
@@ -833,7 +827,6 @@ const AdminManageBookings = ({ bookings, showToast }) => {
     }
   };
 
-  // ฟังก์ชันใหม่สำหรับลบรายการจองทิ้ง
   const handleDeleteBooking = async (bookingId) => {
     if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการจองนี้? (ข้อมูลจะถูกลบถาวร)')) {
       try {
@@ -873,7 +866,6 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                     <td className="p-4">
                       <p className="font-bold text-blue-700 mb-1">{b.itemName}</p>
                       <p className="text-xs font-medium text-gray-800">{b.displayName || b.userEmail}</p>
-                      {/* แสดงชื่อฝ่ายงาน/กลุ่มสาระ */}
                       {b.department && (
                         <span className="inline-block mt-1 text-[11px] font-medium text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                           {b.department}
@@ -891,7 +883,6 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                       <Badge status={b.status} />
                     </td>
                     <td className="p-4 text-center">
-                      {/* ขั้นตอนที่ 1: หัวหน้าฝ่ายรับทราบ */}
                       {b.status === 'pending_head' && (
                         <div className="flex justify-center gap-2">
                           <button 
@@ -909,7 +900,6 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                         </div>
                       )}
 
-                      {/* ขั้นตอนที่ 2: รองผู้อำนวยการอนุมัติ */}
                       {b.status === 'pending_deputy' && (
                         <div className="flex justify-center gap-2">
                           <button 
@@ -927,7 +917,6 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                         </div>
                       )}
 
-                      {/* ดำเนินการแล้ว (อนุมัติ / ไม่อนุมัติ) จะแสดงปุ่มยกเลิกและลบ */}
                       {(b.status === 'approved' || b.status === 'rejected') && (
                         <div className="flex justify-center items-center gap-2">
                           <span className="text-xs text-gray-400 mr-1 hidden sm:inline-block">ดำเนินการแล้ว</span>
@@ -962,7 +951,7 @@ const AdminManageBookings = ({ bookings, showToast }) => {
   );
 };
 
-// 4. User: View Own Bookings
+// --- 4. User: View Own Bookings ---
 const UserBookings = ({ bookings }) => {
   return (
     <div className="space-y-6">
@@ -1015,7 +1004,7 @@ const UserBookings = ({ bookings }) => {
   );
 };
 
-// 5. Admin: Manage Items
+// --- 5. Admin: Manage Items ---
 const AdminManageItems = ({ items, showToast }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -1152,7 +1141,7 @@ const AdminManageItems = ({ items, showToast }) => {
   );
 };
 
-// 6. Admin: Reports
+// --- 6. Admin: Reports ---
 const AdminReports = ({ bookings, items }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
