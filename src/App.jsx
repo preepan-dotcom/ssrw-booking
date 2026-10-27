@@ -420,6 +420,19 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     return h * 60 + m;
   };
 
+const sendLineMessage = async (msg) => {
+    try {
+      // เรียกใช้ไฟล์ send-line.js ในโฟลเดอร์ api
+      await fetch('/api/send-line', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+    } catch (error) {
+      console.error("Line API Error:", error);
+    }
+  };
+
   const handleBook = async (e) => {
     e.preventDefault();
     const form = e.target;
