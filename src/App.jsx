@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported } from "firebase/analytics";
 import { 
   getAuth, 
   signInWithPopup, 
@@ -22,10 +22,9 @@ import {
 import { 
   Calendar as CalendarIcon, MapPin, Monitor, CheckCircle, XCircle, 
   Clock, Plus, Trash2, LogOut, User as UserIcon, 
-  Menu, X, Bell, Info, Mail, PieChart as PieChartIcon, Printer, CheckSquare, ChevronLeft, ChevronRight, Search,
+  Menu, X, Info, Mail, PieChart as PieChartIcon, Printer, CheckSquare, ChevronLeft, ChevronRight, Search,
   BarChart as BarChartIcon
 } from 'lucide-react';
-// เพิ่มการนำเข้า components จาก recharts
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -54,7 +53,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const analytics = getAnalytics(app);
+
+// Safe Analytics Initialization
+isSupported().then(supported => {
+  if (supported) {
+    getAnalytics(app);
+  }
+});
 
 // --- Base Collections ---
 const itemsCol = collection(db, 'items');
@@ -1319,6 +1324,7 @@ const AdminReports = ({ bookings, items }) => {
   );
 };
 
+
 // --- Main Application Component ---
 export default function App() {
   const [user, setUser] = useState(null);
@@ -1419,6 +1425,25 @@ export default function App() {
       showToast('เข้าสู่ระบบสำเร็จ');
     } catch (error) {
       console.warn("Popup sign-in error:", error);
+      
+      if (
+        error.code === 'auth/popup-blocked' || 
+        error.code === 'auth/cancelled-popup-request' ||
+        error.code === 'auth/popup-closed-by-user'
+      ) {
+        // แนะนำให้เปิดผ่าน Chrome/Safari แทนการทำ Redirect ที่มักจะพังใน In-app Browser
+        showToast('กรุณาเปิดลิงก์นี้ผ่านเบราว์เซอร์ (Chrome/Safari) โดยตรง เพื่อเข้าสู่ระบบ', 'error');
+      } else {
+        showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
+      }
+    }
+  };
+
+    try {
+      await signInWithPopup(auth, provider);
+      showToast('เข้าสู่ระบบสำเร็จ');
+    } catch (error) {
+      console.warn("Popup sign-in error:", error);
       // หากโดนบล็อก Popup บนมือถือ ให้ Fallback กลับไปใช้ Redirect อัตโนมัติ
       if (
         error.code === 'auth/popup-blocked' || 
@@ -1509,7 +1534,7 @@ export default function App() {
               )}
               {hasAdminAccess && (
                 <>
-                  <NavBtn active={activeTab === 'admin-bookings'} onClick={() => setActiveTab('admin-bookings')} Icon={Bell} label="จัดการอนุมัติคำขอ" />
+                  <NavBtn active={activeTab === 'admin-bookings'} onClick={() => setActiveTab('admin-bookings')} Icon={CheckSquare} label="จัดการอนุมัติคำขอ" />
                   <NavBtn active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <NavBtn active={activeTab === 'admin-items'} onClick={() => setActiveTab('admin-items')} Icon={MapPin} label="จัดการสถานที่/อุปกรณ์" />
                   <NavBtn active={activeTab === 'admin-reports'} onClick={() => setActiveTab('admin-reports')} Icon={PieChartIcon} label="สรุปการใช้งาน" />
@@ -1547,7 +1572,7 @@ export default function App() {
               )}
               {hasAdminAccess && (
                 <>
-                  <MobileNavBtn active={activeTab === 'admin-bookings'} onClick={() => {setActiveTab('admin-bookings'); setIsMobileMenuOpen(false);}} Icon={Bell} label="จัดการอนุมัติคำขอ" />
+                  <MobileNavBtn active={activeTab === 'admin-bookings'} onClick={() => {setActiveTab('admin-bookings'); setIsMobileMenuOpen(false);}} Icon={CheckSquare} label="จัดการอนุมัติคำขอ" />
                   <MobileNavBtn active={activeTab === 'calendar'} onClick={() => {setActiveTab('calendar'); setIsMobileMenuOpen(false);}} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <MobileNavBtn active={activeTab === 'admin-items'} onClick={() => {setActiveTab('admin-items'); setIsMobileMenuOpen(false);}} Icon={MapPin} label="จัดการสถานที่/อุปกรณ์" />
                   <MobileNavBtn active={activeTab === 'admin-reports'} onClick={() => {setActiveTab('admin-reports'); setIsMobileMenuOpen(false);}} Icon={PieChartIcon} label="สรุปการใช้งาน" />
