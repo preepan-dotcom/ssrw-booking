@@ -94,7 +94,8 @@ const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 4000);
     return () => clearTimeout(timer);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message, type]);
 
   const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
   const Icon = type === 'success' ? CheckCircle : type === 'error' ? XCircle : Info;
@@ -218,8 +219,9 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   };
 
   const parseTime = (timeStr) => {
+    if (!timeStr) return 0;
     const [h, m] = timeStr.split(':').map(Number);
-    return h * 60 + m;
+    return (h * 60) + m;
   };
 
   const handleBook = async (e) => {
@@ -267,10 +269,10 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     };
 
     if (selectedItem.type === 'room') {
-      bookingData.tables = form.tables?.value || 0;
-      bookingData.chairs = form.chairs?.value || 0;
+      bookingData.tables = form.tables?.value ? Number(form.tables.value) : 0;
+      bookingData.chairs = form.chairs?.value ? Number(form.chairs.value) : 0;
       bookingData.soundSystem = form.soundSystem?.checked || false;
-      bookingData.microphones = form.microphones?.value || 0;
+      bookingData.microphones = form.microphones?.value ? Number(form.microphones.value) : 0;
       bookingData.otherEquipment = form.otherEquipment?.value || '';
       bookingData.layoutImage = layoutImage;
     }
@@ -390,7 +392,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
         <form onSubmit={handleBook} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-800">วันที่ต้องการใช้</label>
-            <input type="date" name="date" required min={new Date().toISOString().split('T')[0]} defaultValue={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none focus:border-blue-500" />
+            <input type="date" name="date" required min={new Date().toISOString().split('T')[0]} value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none focus:border-blue-500" />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
@@ -680,7 +682,7 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
 
   // กรองข้อมูลตาม Filter
   const filteredBookings = bookings.filter(b => {
-    const matchSearch = b.itemName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchSearch = (b.itemName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                         (b.displayName || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchDate = filterDate === '' || b.date === filterDate;
     const matchStatus = filterStatus === 'all' || b.status === filterStatus;
@@ -1059,12 +1061,11 @@ const AdminManageItems = ({ items, showToast }) => {
 
 // --- 6. Admin: Reports ---
 const AdminReports = ({ bookings, items }) => {
-  // สร้าง Filter State สำหรับการพิมพ์รายงาน
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [chartType, setChartType] = useState('pie'); // 'pie' or 'bar'
+  const [chartType, setChartType] = useState('pie');
 
   const filteredBookings = bookings.filter(b => {
     if (!b.date) return false;
@@ -1086,12 +1087,11 @@ const AdminReports = ({ bookings, items }) => {
     return 'รอพิจารณา';
   };
 
-  // เตรียมข้อมูลสำหรับกราฟสรุปตามสถานะ
   const chartData = [
-    { name: 'อนุมัติแล้ว', value: approved, color: '#10B981' }, // green-500
-    { name: 'ไม่อนุมัติ', value: rejected, color: '#EF4444' }, // red-500
-    { name: 'อยู่ระหว่างพิจารณา', value: pending, color: '#F59E0B' }, // amber-500
-  ].filter(item => item.value > 0); // แสดงเฉพาะที่มีค่า > 0
+    { name: 'อนุมัติแล้ว', value: approved, color: '#10B981' },
+    { name: 'ไม่อนุมัติ', value: rejected, color: '#EF4444' },
+    { name: 'อยู่ระหว่างพิจารณา', value: pending, color: '#F59E0B' },
+  ].filter(item => item.value > 0);
 
   return (
     <div className="space-y-6">
@@ -1108,7 +1108,6 @@ const AdminReports = ({ bookings, items }) => {
         </button>
       </div>
 
-      {/* ส่วนตัวกรองข้อมูลสรุป */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end print:hidden">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">ตั้งแต่วันที่</label>
@@ -1156,10 +1155,7 @@ const AdminReports = ({ bookings, items }) => {
         </div>
       </div>
 
-      {/* ส่วนแสดงแผนภูมิและรายการที่ใช้สรุป (เฉพาะบนหน้าจอ) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:hidden">
-        
-        {/* แผนภูมิสรุป */}
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -1224,7 +1220,6 @@ const AdminReports = ({ bookings, items }) => {
           </div>
         </div>
 
-        {/* รายการที่ใช้ในการสรุป */}
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
            <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -1257,9 +1252,6 @@ const AdminReports = ({ bookings, items }) => {
         </div>
       </div>
 
-      {/* ========================================== */}
-      {/* 📄 รูปแบบหน้ากระดาษสำหรับสั่งพิมพ์ (Print Layout) */}
-      {/* ========================================== */}
       <div className="hidden print:block print:bg-white print:p-8 print:w-full print:text-black">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold mb-1">บันทึกข้อความ</h1>
@@ -1331,6 +1323,7 @@ export default function App() {
   const [bookings, setBookings] = useState([]);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false); // 💡 ป้องกันการกดล็อกอินซ้ำ
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState('browse');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -1368,9 +1361,12 @@ export default function App() {
         setUser(currentUser);
         setProfile(profileData);
 
-        if (role !== 'user' && (activeTab === 'browse' || activeTab === 'my-bookings')) {
-          setActiveTab('admin-bookings');
-        }
+        setActiveTab(prev => {
+           if (role !== 'user' && (prev === 'browse' || prev === 'my-bookings')) {
+             return 'admin-bookings';
+           }
+           return prev;
+        });
       } else {
         setUser(null);
         setProfile(null);
@@ -1379,7 +1375,8 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [activeTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -1410,8 +1407,11 @@ export default function App() {
     };
   }, [user]);
 
-  // 🚀 แก้ปัญหา Popup บล็อก & In-app Browser Storage Partitioning
+  // 🚀 ป้องกันการกดเข้าสู่ระบบซ้ำ (Disable Dynamic Button)
   const handleGoogleLogin = async () => {
+    if (isLoggingIn) return; // หากกำลังทำงานอยู่ จะป้องกันไม่ให้กดย้ำได้
+
+    setIsLoggingIn(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ 
       hd: 'ssrw.ac.th',
@@ -1434,6 +1434,8 @@ export default function App() {
       } else {
         showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
       }
+    } finally {
+      setIsLoggingIn(false); // ปลดล็อกสถานะปุ่มเข้าสู่ระบบเสร็จสิ้น
     }
   };
 
@@ -1467,10 +1469,22 @@ export default function App() {
           
           <button 
             onClick={handleGoogleLogin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3"
+            disabled={isLoggingIn}
+            className={`w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3 ${
+              isLoggingIn ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
-            <Mail size={20} />
-            เข้าสู่ระบบด้วย Google Account
+            {isLoggingIn ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>กำลังเข้าสู่ระบบ...</span>
+              </>
+            ) : (
+              <>
+                <Mail size={20} />
+                <span>เข้าสู่ระบบด้วย Google Account</span>
+              </>
+            )}
           </button>
           
           <p className="text-xs text-gray-400 mt-6 text-center">
