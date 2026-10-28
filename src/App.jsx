@@ -459,7 +459,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   );
 };
 
-// --- 2. Calendar View ---
+// // --- 2. Calendar View ---
 const CalendarView = ({ bookings, items }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayBookings, setSelectedDayBookings] = useState([]);
@@ -491,7 +491,7 @@ const CalendarView = ({ bookings, items }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">ปฏิทินการใช้งานสถานที่และอุปกรณ์</h2>
-          <p className="text-gray-500 mt-1">คลิกที่วันที่เพื่อดูรายการขออนุญาตรายละเอียดทั้งหมด</p>
+          <p className="text-gray-500 mt-1">คลิกที่วันที่เพื่อดูรายการจองรายละเอียดทั้งหมด</p>
         </div>
 
         <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-gray-200 shadow-sm">
@@ -560,7 +560,11 @@ const CalendarView = ({ bookings, items }) => {
             <p className="text-gray-500 text-sm py-4 text-center">ไม่มีการใช้งานในวันนี้</p>
           ) : (
             <div className="space-y-3">
-              {selectedDayBookings.map(b => (
+              {selectedDayBookings.map(b => {
+                // ดึงรายชื่อครูผู้ดูแลออกมา (รองรับทั้งแบบ Array ใหม่และ String เก่า)
+                const teachersList = b.assignedTeachers || (b.assignedTeacher ? [b.assignedTeacher] : []);
+                
+                return (
                 <div key={b.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
                     <div className="flex items-center gap-2">
@@ -573,9 +577,16 @@ const CalendarView = ({ bookings, items }) => {
                       | <strong>เวลา:</strong> {b.startTime} - {b.endTime} น.
                     </p>
                     <p className="text-xs text-gray-600 mt-1"><strong>วัตถุประสงค์:</strong> {b.purpose}</p>
+                    
+                    {/* เพิ่มการแสดงผลครูผู้ดูแล */}
+                    {teachersList.length > 0 && (
+                      <p className="text-xs text-indigo-700 mt-1.5 font-semibold bg-indigo-50 inline-block px-2 py-1 rounded border border-indigo-100">
+                        👨‍🏫 ผู้ดูแล: {teachersList.join(', ')}
+                      </p>
+                    )}
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
