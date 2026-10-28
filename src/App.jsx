@@ -226,7 +226,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     });
 
     if (hasOverlap) {
-      showToast('ไม่สามารถจองได้: เวลาที่เลือกมีการใช้งานแล้ว', 'error');
+      showToast('ไม่สามารถขออนุญาตได้: เวลาที่เลือกมีการใช้งานแล้ว', 'error');
       return;
     }
 
@@ -260,25 +260,25 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
       await addDoc(bookingsCol, bookingData);
 
       const itemNameSafe = selectedItem?.name || 'ไม่ระบุสถานที่';
-      const userNameSafe = user?.displayName || user?.email || 'ไม่ระบุผู้จอง';
+      const userNameSafe = user?.displayName || user?.email || 'ไม่ระบุผู้ขออนุญาต';
       const deptSafe = department || 'ไม่ระบุฝ่าย';
       const dateSafe = date || 'ไม่ระบุวันที่';
       const timeSafe = `${startTime || '-'} - ${endTime || '-'} น.`;
 
-      const notifyMsg = `🔔 มีคำขอจองใหม่เข้าสู่ระบบ!\n\n📌 สถานที่: ${itemNameSafe}\n👤 ผู้จอง: ${userNameSafe}\n🏷️ ฝ่าย: ${deptSafe}\n📅 วันที่: ${dateSafe}\n⏰ เวลา: ${timeSafe}\n\nกรุณาเข้าสู่ระบบเพื่อตรวจสอบครับ`;
+      const notifyMsg = `🔔 มีคำขออนุญาตใหม่เข้าสู่ระบบ!\n\n📌 สถานที่: ${itemNameSafe}\n👤 ผู้ขออนุญาต: ${userNameSafe}\n🏷️ ฝ่าย: ${deptSafe}\n📅 วันที่: ${dateSafe}\n⏰ เวลา: ${timeSafe}\n\nกรุณาเข้าสู่ระบบเพื่อตรวจสอบครับ`;
       
       try {
         await sendLineMessage(notifyMsg);
       } catch (lineErr) {
-        console.error("สร้างการจองสำเร็จ แต่ส่ง LINE แจ้งเตือนไม่สำเร็จ:", lineErr);
+        console.error("สร้างการขออนุญาตสำเร็จ แต่ส่ง LINE แจ้งเตือนไม่สำเร็จ:", lineErr);
       }
 
-      showToast('ส่งคำขอจองสำเร็จ (เสนอต่อหัวหน้าฝ่าย)');
+      showToast('ส่งคำขออนุญาตสำเร็จ (เสนอต่อหัวหน้าฝ่าย)');
       setIsModalOpen(false);
       setLayoutImage(null);
       setSelectedDate('');
     } catch (error) {
-      showToast('เกิดข้อผิดพลาดในการจอง', 'error');
+      showToast('เกิดข้อผิดพลาดในการขออนุญาต', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -292,14 +292,14 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
     <div className="space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">จองอาคารสถานที่และอุปกรณ์</h2>
+          <h2 className="text-2xl font-bold text-gray-800">ขออนุญาตใช้อาคารสถานที่และอุปกรณ์</h2>
           <p className="text-gray-500 mt-1">โรงเรียนศรีสองรักษ์วิทยา</p>
         </div>
       </div>
 
       {activeItems.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl shadow-sm text-center text-gray-500 border border-gray-100">
-          ไม่พบรายการที่เปิดให้จองในขณะนี้
+          ไม่พบรายการที่เปิดให้ขออนุญาตในขณะนี้
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -336,7 +336,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
                   }}
                   className="w-full bg-gray-50 hover:bg-blue-600 hover:text-white text-gray-700 font-semibold py-2.5 rounded-xl transition-all border border-gray-200 hover:border-blue-600 group-hover:shadow-sm"
                 >
-                  ทำการจอง
+                  ทำการขออนุญาต
                 </button>
               </div>
             </div>
@@ -345,7 +345,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
       )}
 
       {/* Booking Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => !isSubmitting && setIsModalOpen(false)} title={`จอง: ${selectedItem?.name}`}>
+      <Modal isOpen={isModalOpen} onClose={() => !isSubmitting && setIsModalOpen(false)} title={`ขออนุญาต: ${selectedItem?.name}`}>
         <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
           <h4 className="font-semibold text-blue-800 flex items-center gap-2 mb-2"><Clock size={18} /> ตารางการใช้งาน</h4>
           <input 
@@ -364,7 +364,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-gray-500 text-center py-2 bg-white rounded-lg border border-dashed border-blue-200">ยังไม่มีการจองในวันนี้</p>
+            <p className="text-sm text-gray-500 text-center py-2 bg-white rounded-lg border border-dashed border-blue-200">ยังไม่มีการขออนุญาตในวันนี้</p>
           )}
         </div>
 
@@ -450,7 +450,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors font-medium">ยกเลิก</button>
             <button type="submit" disabled={isSubmitting} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 flex justify-center items-center">
-              {isSubmitting ? 'กำลังส่งข้อมูล...' : 'ส่งคำขอจอง'}
+              {isSubmitting ? 'กำลังส่งข้อมูล...' : 'ส่งคำขออนุญาต'}
             </button>
           </div>
         </form>
@@ -491,7 +491,7 @@ const CalendarView = ({ bookings, items }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">ปฏิทินการใช้งานสถานที่และอุปกรณ์</h2>
-          <p className="text-gray-500 mt-1">คลิกที่วันที่เพื่อดูรายการจองรายละเอียดทั้งหมด</p>
+          <p className="text-gray-500 mt-1">คลิกที่วันที่เพื่อดูรายการขออนุญาตรายละเอียดทั้งหมด</p>
         </div>
 
         <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-2xl border border-gray-200 shadow-sm">
@@ -568,7 +568,7 @@ const CalendarView = ({ bookings, items }) => {
                       <Badge status={b.status} />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      <strong>ผู้ขอจอง:</strong> {b.displayName || b.userEmail} 
+                      <strong>ผู้ขออนุญาต:</strong> {b.displayName || b.userEmail} 
                       {b.department && <span className="text-blue-700 font-medium"> ({b.department})</span>} 
                       | <strong>เวลา:</strong> {b.startTime} - {b.endTime} น.
                     </p>
@@ -640,7 +640,7 @@ const AdminManageBookings = ({ bookings, showToast }) => {
 
       if (currentBooking && statusText) {
         // เพิ่มข้อมูลวันที่และเวลาลงในแจ้งเตือนเพื่อให้ครูผู้ดูแลทราบกำหนดการทันที
-        const notifyMsg = `📝 มีการอัปเดตสถานะการจอง\n\n📌 สถานที่: ${currentBooking.itemName}\n📅 วันที่: ${currentBooking.date}\n⏰ เวลา: ${currentBooking.startTime} - ${currentBooking.endTime} น.\n👤 ผู้จอง: ${currentBooking.displayName || currentBooking.userEmail}\n📋 สถานะใหม่: ${statusText}`;
+        const notifyMsg = `📝 มีการอัปเดตสถานะการขออนุญาต\n\n📌 สถานที่: ${currentBooking.itemName}\n📅 วันที่: ${currentBooking.date}\n⏰ เวลา: ${currentBooking.startTime} - ${currentBooking.endTime} น.\n👤 ผู้ขออนุญาต: ${currentBooking.displayName || currentBooking.userEmail}\n📋 สถานะใหม่: ${statusText}`;
         await sendLineMessage(notifyMsg);
       }
 
@@ -651,10 +651,10 @@ const AdminManageBookings = ({ bookings, showToast }) => {
   };
 
   const handleDeleteBooking = async (bookingId) => {
-    if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการจองนี้? (ข้อมูลจะถูกลบถาวร)')) {
+    if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการขออนุญาตนี้? (ข้อมูลจะถูกลบถาวร)')) {
       try {
         await deleteDoc(getBookingDoc(bookingId));
-        showToast('ลบรายการจองเรียบร้อยแล้ว');
+        showToast('ลบรายการขออนุญาตเรียบร้อยแล้ว');
       } catch (error) {
         showToast('เกิดข้อผิดพลาดในการลบรายการ', 'error');
       }
@@ -664,7 +664,7 @@ const AdminManageBookings = ({ bookings, showToast }) => {
   return (
     <div className="space-y-6 print:hidden">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">จัดการอนุมัติคำขอจอง</h2>
+        <h2 className="text-2xl font-bold text-gray-800">จัดการอนุมัติคำขออนุญาต</h2>
         <p className="text-gray-500 mt-1">ขั้นตอนการรับทราบ มอบหมายผู้ดูแล และอนุมัติการขอใช้อาคารสถานที่และอุปกรณ์</p>
       </div>
 
@@ -682,7 +682,7 @@ const AdminManageBookings = ({ bookings, showToast }) => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {bookings.length === 0 && (
-                  <tr><td colSpan="5" className="p-8 text-center text-gray-500">ไม่มีคำขอจองในระบบ</td></tr>
+                  <tr><td colSpan="5" className="p-8 text-center text-gray-500">ไม่มีคำขออนุญาตในระบบ</td></tr>
                 )}
                 {bookings.map(b => {
                   // รองรับข้อมูลเก่าที่เป็น String และข้อมูลใหม่ที่เป็น Array
@@ -834,13 +834,13 @@ const UserBookings = ({ bookings }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">ประวัติการจองของฉัน</h2>
+        <h2 className="text-2xl font-bold text-gray-800">ประวัติการขออนุญาตของฉัน</h2>
         <p className="text-gray-500 mt-1">ติดตามสถานะคำขอเสนอผ่านหัวหน้าฝ่ายและรองผู้อำนวยการ</p>
       </div>
 
       {bookings.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl shadow-sm text-center text-gray-500 border border-gray-100">
-          คุณยังไม่มีประวัติการจอง
+          คุณยังไม่มีประวัติการขออนุญาต
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -942,7 +942,7 @@ const AdminManageItems = ({ items, showToast }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">จัดการสถานที่และอุปกรณ์</h2>
-          <p className="text-gray-500 mt-1">เพิ่ม ลบ หรือแก้ไขข้อมูลรายการที่เปิดให้จอง</p>
+          <p className="text-gray-500 mt-1">เพิ่ม ลบ หรือแก้ไขข้อมูลรายการที่เปิดให้ขออนุญาต</p>
         </div>
         <button onClick={() => { setEditingItem(null); setItemImage(null); setIsModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-medium transition-colors shadow-sm">
           <Plus size={20} /> เพิ่มรายการ
@@ -1007,7 +1007,7 @@ const AdminManageItems = ({ items, showToast }) => {
           </div>
           <div className="flex items-center gap-2 mt-2">
             <input type="checkbox" id="isActive" name="isActive" defaultChecked={editingItem ? editingItem.isActive : true} className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
-            <label htmlFor="isActive" className="text-sm font-medium text-gray-700">เปิดให้จอง (Active)</label>
+            <label htmlFor="isActive" className="text-sm font-medium text-gray-700">เปิดให้ขออนุญาต (Active)</label>
           </div>
           <div className="pt-4 flex gap-3">
             <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium">ยกเลิก</button>
@@ -1198,7 +1198,7 @@ export default function App() {
             <UserIcon className="text-blue-600" size={40} />
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">เข้าสู่ระบบ</h1>
-          <p className="text-gray-500 mb-6 text-sm">ระบบจองอาคารสถานที่และอุปกรณ์<br/>โรงเรียนศรีสองรักษ์วิทยา</p>
+          <p className="text-gray-500 mb-6 text-sm">ระบบขออนุญาตใช้อาคารสถานที่และอุปกรณ์<br/>โรงเรียนศรีสองรักษ์วิทยา</p>
           
           <button 
             onClick={handleGoogleLogin}
@@ -1237,9 +1237,9 @@ export default function App() {
             <nav className="hidden md:flex space-x-1">
               {!isAdmin && (
                 <>
-                  <NavBtn active={activeTab === 'browse'} onClick={() => setActiveTab('browse')} Icon={Monitor} label="รายการจองได้" />
+                  <NavBtn active={activeTab === 'browse'} onClick={() => setActiveTab('browse')} Icon={Monitor} label="รายการที่ขออนุญาตได้" />
                   <NavBtn active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
-                  <NavBtn active={activeTab === 'my-bookings'} onClick={() => setActiveTab('my-bookings')} Icon={Clock} label="ประวัติการจองของฉัน" />
+                  <NavBtn active={activeTab === 'my-bookings'} onClick={() => setActiveTab('my-bookings')} Icon={Clock} label="ประวัติการขออนุญาตของฉัน" />
                 </>
               )}
               {isAdmin && (
@@ -1271,9 +1271,9 @@ export default function App() {
           <div className="md:hidden bg-white border-t p-2 space-y-1 shadow-lg absolute w-full print:hidden">
              {!isAdmin && (
                 <>
-                  <MobileNavBtn active={activeTab === 'browse'} onClick={() => {setActiveTab('browse'); setIsMobileMenuOpen(false);}} Icon={Monitor} label="รายการจองได้" />
+                  <MobileNavBtn active={activeTab === 'browse'} onClick={() => {setActiveTab('browse'); setIsMobileMenuOpen(false);}} Icon={Monitor} label="รายการที่ขออนุญาตได้" />
                   <MobileNavBtn active={activeTab === 'calendar'} onClick={() => {setActiveTab('calendar'); setIsMobileMenuOpen(false);}} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
-                  <MobileNavBtn active={activeTab === 'my-bookings'} onClick={() => {setActiveTab('my-bookings'); setIsMobileMenuOpen(false);}} Icon={Clock} label="ประวัติการจองของฉัน" />
+                  <MobileNavBtn active={activeTab === 'my-bookings'} onClick={() => {setActiveTab('my-bookings'); setIsMobileMenuOpen(false);}} Icon={Clock} label="ประวัติการขออนุญาตของฉัน" />
                 </>
               )}
               {isAdmin && (
