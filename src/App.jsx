@@ -23,13 +23,13 @@ import {
   Menu, X, Bell, Info, Mail, PieChart, Printer, CheckSquare, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
-// --- รายชื่อผู้ดูแลระบบ / ผู้บริหาร ---
-const ADMIN_EMAILS = [
-  "admin@ssrw.ac.th",
-  "kamchai@ssrw.ac.th", // ผู้บรหาร
-  "apirat@ssrw.ac.th", // หัวหน้าฝ่าย
-  "preepan@ssrw.ac.th" // ผู้ดูแลระบบ
-];
+// --- กำหนดระดับสิทธิ์ให้แต่ละอีเมล (Role-based Access) ---
+const USER_ROLES = {
+  "kamchai@ssrw.ac.th": "executive", // ผู้บริหาร (รอง ผอ.) - กดอนุมัติได้อย่างเดียว
+  "apirat@ssrw.ac.th": "head",       // หัวหน้าฝ่าย - กดรับทราบได้อย่างเดียว
+  "admin@ssrw.ac.th": "admin",       // ผู้ดูแลระบบ - ทำได้ทุกอย่าง
+  "preepan@ssrw.ac.th": "admin"      // ผู้ดูแลระบบ - ทำได้ทุกอย่าง
+};
 
 // --- Firebase Initialization ---
 const firebaseConfig = {
@@ -188,7 +188,6 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // ปรับลดลิมิตลงเหลือ 500KB เพื่อป้องกันข้อความ Base64 ขยายตัวจนเกิน 1MB
       if (file.size > 512000) {
         showToast('ไฟล์ภาพมีขนาดใหญ่เกินไป (กรุณาใช้ไฟล์ขนาดไม่เกิน 500KB)', 'error');
         return;
@@ -603,9 +602,13 @@ const ASSIGNABLE_TEACHERS = [
   "นายธณกร กูฎโสม (ครูอั๋น)"
 ];
 
-const AdminManageBookings = ({ bookings, showToast }) => {
-  // เปลี่ยนมาเก็บเป็น Array เพื่อรองรับการเลือกหลายคน: { bookingId: ["ครูA", "ครูB"] }
+const AdminManageBookings = ({ bookings, showToast, userRole }) => {
   const [assignSelections, setAssignSelections] = useState({});
+
+  // กำหนดสิทธิ์การกดปุ่มตาม Role ที่รับเข้ามา
+  const canAcknowledge = userRole === 'admin' || userRole === 'head';
+  const canApprove = userRole === 'admin' || userRole === 'executive';
+  const canReject = userRole === 'admin' || userRole === 'head' || userRole === 'executive';
 
   const handleAssignToggle = (bookingId, teacher) => {
     setAssignSelections(prev => {
@@ -622,14 +625,13 @@ const AdminManageBookings = ({ bookings, showToast }) => {
     try {
       const updateData = { status: newStatus };
       if (assignedTeachersArray && assignedTeachersArray.length > 0) {
-        updateData.assignedTeachers = assignedTeachersArray; // บันทึกเป็น Array ลงฐานข้อมูล
+        updateData.assignedTeachers = assignedTeachersArray;
       }
       
       await updateDoc(getBookingDoc(bookingId), updateData);
       
       const currentBooking = bookings.find(b => b.id === bookingId);
       
-      // ดึงรายชื่อครูผู้ดูแลจากข้อมูลที่มีอยู่ เพื่อใช้แจ้งเตือนตอนรอง ผอ. อนุมัติ
       const teachersList = updateData.assignedTeachers || currentBooking?.assignedTeachers || (currentBooking?.assignedTeacher ? [currentBooking.assignedTeacher] : []);
       
       let statusText = "";
@@ -641,7 +643,6 @@ const AdminManageBookings = ({ bookings, showToast }) => {
       }
       else if (newStatus === 'approved') {
         statusText = "🎉 รอง ผอ. อนุมัติเรียบร้อยแล้ว";
-        // เพิ่มข้อความแจ้งเตือนครูผู้ดูแลโดยเฉพาะ
         if (teachersList.length > 0) {
           statusText += `\n👨‍🏫 แจ้งเตือนผู้ดูแล: ${teachersList.join(', ')}\n(โปรดเตรียมความพร้อมสถานที่และอุปกรณ์ครับ)`;
         }
@@ -651,7 +652,6 @@ const AdminManageBookings = ({ bookings, showToast }) => {
       }
 
       if (currentBooking && statusText) {
-        // เพิ่มข้อมูลวันที่และเวลาลงในแจ้งเตือนเพื่อให้ครูผู้ดูแลทราบกำหนดการทันที
         const notifyMsg = `📝 มีการอัปเดตสถานะการขออนุญาต\n\n📌 สถานที่: ${currentBooking.itemName}\n📅 วันที่: ${currentBooking.date}\n⏰ เวลา: ${currentBooking.startTime} - ${currentBooking.endTime} น.\n👤 ผู้ขออนุญาต: ${currentBooking.displayName || currentBooking.userEmail}\n📋 สถานะใหม่: ${statusText}`;
         await sendLineMessage(notifyMsg);
       }
@@ -697,7 +697,6 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                   <tr><td colSpan="5" className="p-8 text-center text-gray-500">ไม่มีคำขออนุญาตในระบบ</td></tr>
                 )}
                 {bookings.map(b => {
-                  // รองรับข้อมูลเก่าที่เป็น String และข้อมูลใหม่ที่เป็น Array
                   const teachersList = b.assignedTeachers || (b.assignedTeacher ? [b.assignedTeacher] : []);
                   
                   return (
@@ -736,9 +735,9 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                     <td className="p-4 text-center align-top">
                       
                       {/* ==================================================== */}
-                      {/* ส่วนของหัวหน้าฝ่าย: รับทราบและเลือกครูดูแล (กรอบสีเหลือง) */}
+                      {/* ส่วนของหัวหน้าฝ่าย: รับทราบและเลือกครูดูแล */}
                       {/* ==================================================== */}
-                      {b.status === 'pending_head' && (
+                      {b.status === 'pending_head' && canAcknowledge && (
                         <div className="flex flex-col items-center gap-2 bg-amber-50/50 p-3 rounded-xl border border-amber-200 shadow-sm">
                           <span className="text-xs font-bold text-amber-800 w-full text-left border-b border-amber-200 pb-1 flex items-center gap-1">
                             👑 สำหรับหัวหน้าฝ่าย
@@ -766,20 +765,29 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                             >
                               <CheckSquare size={14} /> หัวหน้ารับทราบ
                             </button>
-                            <button 
-                              onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                              className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                            >
-                              ปฏิเสธ
-                            </button>
+                            {canReject && (
+                              <button 
+                                onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                                className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                ปฏิเสธ
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
 
+                      {/* กรณีสถานะเป็น pending_head แต่ผู้ใช้งานไม่มีสิทธิ์รับทราบ (เช่น เป็นผู้บริหาร) */}
+                      {b.status === 'pending_head' && !canAcknowledge && (
+                        <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 inline-block">
+                          ⏳ รอหัวหน้าฝ่ายดำเนินการ
+                        </span>
+                      )}
+
                       {/* ==================================================== */}
-                      {/* ส่วนของรอง ผอ.: อนุมัติเท่านั้น (กรอบสีน้ำเงิน)          */}
+                      {/* ส่วนของรอง ผอ.: อนุมัติเท่านั้น */}
                       {/* ==================================================== */}
-                      {b.status === 'pending_deputy' && (
+                      {b.status === 'pending_deputy' && canApprove && (
                         <div className="flex flex-col items-center gap-2 bg-blue-50/50 p-3 rounded-xl border border-blue-200 shadow-sm">
                           <span className="text-xs font-bold text-blue-800 w-full text-left border-b border-blue-200 pb-1 flex items-center gap-1">
                             👑 สำหรับรองผู้อำนวยการ
@@ -792,18 +800,27 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                             >
                               <CheckCircle size={14} /> รอง ผอ. อนุมัติ
                             </button>
-                            <button 
-                              onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                              className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
-                            >
-                              ไม่อนุมัติ
-                            </button>
+                            {canReject && (
+                              <button 
+                                onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                                className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
+                              >
+                                ไม่อนุมัติ
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
 
+                      {/* กรณีสถานะเป็น pending_deputy แต่ผู้ใช้งานไม่มีสิทธิ์อนุมัติ (เช่น เป็นหัวหน้าฝ่าย) */}
+                      {b.status === 'pending_deputy' && !canApprove && (
+                        <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 inline-block">
+                          ⏳ รอรองผู้อำนวยการดำเนินการ
+                        </span>
+                      )}
+
                       {/* ==================================================== */}
-                      {/* ปุ่มจัดการสำหรับสถานะที่เสร็จสิ้นแล้ว                    */}
+                      {/* ปุ่มจัดการสำหรับสถานะที่เสร็จสิ้นแล้ว */}
                       {/* ==================================================== */}
                       {(b.status === 'approved' || b.status === 'rejected') && (
                         <div className="flex flex-col items-center gap-2">
@@ -811,7 +828,7 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                             การพิจารณาเสร็จสิ้น
                           </span>
                           <div className="flex justify-center items-center gap-2 mt-1">
-                            {b.status === 'approved' && (
+                            {b.status === 'approved' && canApprove && (
                               <button 
                                 onClick={() => handleUpdateStatus(b.id, 'rejected')}
                                 className="text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-amber-200"
@@ -820,13 +837,16 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                                 <XCircle size={14} /> ยกเลิก
                               </button>
                             )}
-                            <button 
-                              onClick={() => handleDeleteBooking(b.id)}
-                              className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-red-200"
-                              title="ลบรายการนี้ถาวร"
-                            >
-                              <Trash2 size={14} /> ลบ
-                            </button>
+                            {/* เฉพาะ Admin หรือคนมีสิทธิ์ reject ถึงจะลบได้ */}
+                            {canReject && (
+                              <button 
+                                onClick={() => handleDeleteBooking(b.id)}
+                                className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-red-200"
+                                title="ลบรายการนี้ถาวร"
+                              >
+                                <Trash2 size={14} /> ลบ
+                              </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -903,8 +923,8 @@ const AdminManageItems = ({ items, showToast }) => {
   const handleItemImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1048576) {
-        showToast('ไฟล์ภาพมีขนาดใหญ่เกินไป (ไม่เกิน 1MB)', 'error');
+      if (file.size > 512000) {
+        showToast('ไฟล์ภาพมีขนาดใหญ่เกินไป (กรุณาใช้ไฟล์ขนาดไม่เกิน 500KB)', 'error');
         return;
       }
       const reader = new FileReader();
@@ -1111,7 +1131,9 @@ export default function App() {
           return;
         }
 
-        const role = ADMIN_EMAILS.includes(currentUser.email) ? 'admin' : 'user';
+        // กำหนด Role ตามออบเจกต์ USER_ROLES ถ้าไม่มีให้เป็น user ธรรมดา
+        const role = USER_ROLES[currentUser.email] || 'user';
+        
         const profileData = {
           email: currentUser.email,
           displayName: currentUser.displayName || currentUser.email.split('@')[0],
@@ -1129,7 +1151,7 @@ export default function App() {
         setUser(currentUser);
         setProfile(profileData);
 
-        if (role === 'admin' && (activeTab === 'browse' || activeTab === 'my-bookings')) {
+        if (role !== 'user' && (activeTab === 'browse' || activeTab === 'my-bookings')) {
           setActiveTab('admin-bookings');
         }
       } else {
@@ -1229,7 +1251,7 @@ export default function App() {
     );
   }
 
-  const isAdmin = profile.role === 'admin';
+  const hasAdminAccess = profile.role !== 'user';
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -1247,14 +1269,14 @@ export default function App() {
             </div>
 
             <nav className="hidden md:flex space-x-1">
-              {!isAdmin && (
+              {!hasAdminAccess && (
                 <>
                   <NavBtn active={activeTab === 'browse'} onClick={() => setActiveTab('browse')} Icon={Monitor} label="รายการที่ขออนุญาตได้" />
                   <NavBtn active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <NavBtn active={activeTab === 'my-bookings'} onClick={() => setActiveTab('my-bookings')} Icon={Clock} label="ประวัติการขออนุญาตของฉัน" />
                 </>
               )}
-              {isAdmin && (
+              {hasAdminAccess && (
                 <>
                   <NavBtn active={activeTab === 'admin-bookings'} onClick={() => setActiveTab('admin-bookings')} Icon={Bell} label="จัดการอนุมัติคำขอ" />
                   <NavBtn active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
@@ -1267,7 +1289,11 @@ export default function App() {
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex flex-col items-end">
                 <span className="text-sm font-semibold text-gray-800">{profile.email}</span>
-                <span className="text-xs text-blue-600 font-medium">{isAdmin ? 'ผู้ดูแลระบบ / ผู้บริหาร' : 'ผู้ใช้งาน'}</span>
+                <span className="text-xs text-blue-600 font-medium">
+                  {profile.role === 'admin' ? 'ผู้ดูแลระบบ' : 
+                   profile.role === 'executive' ? 'รองผู้อำนวยการ' : 
+                   profile.role === 'head' ? 'หัวหน้าฝ่าย' : 'ผู้ใช้งาน'}
+                </span>
               </div>
               <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors" title="ออกจากระบบ">
                 <LogOut size={20} />
@@ -1281,14 +1307,14 @@ export default function App() {
 
         {isMobileMenuOpen && (
           <div className="md:hidden bg-white border-t p-2 space-y-1 shadow-lg absolute w-full print:hidden">
-             {!isAdmin && (
+             {!hasAdminAccess && (
                 <>
                   <MobileNavBtn active={activeTab === 'browse'} onClick={() => {setActiveTab('browse'); setIsMobileMenuOpen(false);}} Icon={Monitor} label="รายการที่ขออนุญาตได้" />
                   <MobileNavBtn active={activeTab === 'calendar'} onClick={() => {setActiveTab('calendar'); setIsMobileMenuOpen(false);}} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <MobileNavBtn active={activeTab === 'my-bookings'} onClick={() => {setActiveTab('my-bookings'); setIsMobileMenuOpen(false);}} Icon={Clock} label="ประวัติการขออนุญาตของฉัน" />
                 </>
               )}
-              {isAdmin && (
+              {hasAdminAccess && (
                 <>
                   <MobileNavBtn active={activeTab === 'admin-bookings'} onClick={() => {setActiveTab('admin-bookings'); setIsMobileMenuOpen(false);}} Icon={Bell} label="จัดการอนุมัติคำขอ" />
                   <MobileNavBtn active={activeTab === 'calendar'} onClick={() => {setActiveTab('calendar'); setIsMobileMenuOpen(false);}} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
@@ -1301,13 +1327,13 @@ export default function App() {
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:m-0 print:max-w-none">
-        {!isAdmin && activeTab === 'browse' && <UserBrowseItems bookings={bookings} items={items} showToast={showToast} user={profile} userId={user.uid} />}
-        {!isAdmin && activeTab === 'my-bookings' && <UserBookings bookings={bookings.filter(b => b.userId === user.uid)} />}
+        {!hasAdminAccess && activeTab === 'browse' && <UserBrowseItems bookings={bookings} items={items} showToast={showToast} user={profile} userId={user.uid} />}
+        {!hasAdminAccess && activeTab === 'my-bookings' && <UserBookings bookings={bookings.filter(b => b.userId === user.uid)} />}
         {activeTab === 'calendar' && <CalendarView bookings={bookings} items={items} />}
         
-        {isAdmin && activeTab === 'admin-items' && <AdminManageItems items={items} showToast={showToast} />}
-        {isAdmin && activeTab === 'admin-bookings' && <AdminManageBookings bookings={bookings} showToast={showToast} />}
-        {isAdmin && activeTab === 'admin-reports' && <AdminReports bookings={bookings} items={items} />}
+        {hasAdminAccess && activeTab === 'admin-items' && <AdminManageItems items={items} showToast={showToast} />}
+        {hasAdminAccess && activeTab === 'admin-bookings' && <AdminManageBookings bookings={bookings} showToast={showToast} userRole={profile.role} />}
+        {hasAdminAccess && activeTab === 'admin-reports' && <AdminReports bookings={bookings} items={items} />}
       </main>
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
