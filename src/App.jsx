@@ -590,17 +590,25 @@ const ASSIGNABLE_TEACHERS = [
 ];
 
 const AdminManageBookings = ({ bookings, showToast }) => {
+  // เปลี่ยนมาเก็บเป็น Array เพื่อรองรับการเลือกหลายคน: { bookingId: ["ครูA", "ครูB"] }
   const [assignSelections, setAssignSelections] = useState({});
 
-  const handleAssignChange = (bookingId, teacherName) => {
-    setAssignSelections(prev => ({ ...prev, [bookingId]: teacherName }));
+  const handleAssignToggle = (bookingId, teacher) => {
+    setAssignSelections(prev => {
+      const currentSelected = prev[bookingId] || [];
+      if (currentSelected.includes(teacher)) {
+        return { ...prev, [bookingId]: currentSelected.filter(t => t !== teacher) };
+      } else {
+        return { ...prev, [bookingId]: [...currentSelected, teacher] };
+      }
+    });
   };
 
-  const handleUpdateStatus = async (bookingId, newStatus, assignedTeacher = null) => {
+  const handleUpdateStatus = async (bookingId, newStatus, assignedTeachersArray = []) => {
     try {
       const updateData = { status: newStatus };
-      if (assignedTeacher) {
-        updateData.assignedTeacher = assignedTeacher;
+      if (assignedTeachersArray && assignedTeachersArray.length > 0) {
+        updateData.assignedTeachers = assignedTeachersArray; // บันทึกเป็น Array ลงฐานข้อมูล
       }
       
       await updateDoc(getBookingDoc(bookingId), updateData);
@@ -610,7 +618,9 @@ const AdminManageBookings = ({ bookings, showToast }) => {
       let statusText = "";
       if (newStatus === 'pending_deputy') {
         statusText = "✅ หัวหน้าฝ่ายรับทราบแล้ว (รอรอง ผอ. อนุมัติ)";
-        if (assignedTeacher) statusText += `\n👨‍🏫 ผู้ดูแล: ${assignedTeacher}`;
+        if (assignedTeachersArray.length > 0) {
+          statusText += `\n👨‍🏫 ผู้ดูแล: ${assignedTeachersArray.join(', ')}`;
+        }
       }
       else if (newStatus === 'approved') statusText = "🎉 รอง ผอ. อนุมัติเรียบร้อยแล้ว";
       else if (newStatus === 'rejected') statusText = "❌ ไม่อนุมัติ/ยกเลิกคำขอ";
@@ -649,20 +659,24 @@ const AdminManageBookings = ({ bookings, showToast }) => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100 text-gray-600 text-sm">
-                  <th className="p-4 font-semibold">ผู้ขอ/รายการ</th>
-                  <th className="p-4 font-semibold">วันและเวลา</th>
-                  <th className="p-4 font-semibold">รายละเอียด & ผู้ดูแล</th>
-                  <th className="p-4 font-semibold text-center">สถานะปัจจุบัน</th>
-                  <th className="p-4 font-semibold text-center min-w-[280px]">การจัดการ</th>
+                  <th className="p-4 font-semibold w-1/4">ผู้ขอ/รายการ</th>
+                  <th className="p-4 font-semibold w-1/6">วันและเวลา</th>
+                  <th className="p-4 font-semibold w-1/4">รายละเอียด & ผู้ดูแล</th>
+                  <th className="p-4 font-semibold text-center w-1/6">สถานะปัจจุบัน</th>
+                  <th className="p-4 font-semibold text-center w-1/4 min-w-[280px]">การจัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {bookings.length === 0 && (
                   <tr><td colSpan="5" className="p-8 text-center text-gray-500">ไม่มีคำขอจองในระบบ</td></tr>
                 )}
-                {bookings.map(b => (
+                {bookings.map(b => {
+                  // รองรับข้อมูลเก่าที่เป็น String และข้อมูลใหม่ที่เป็น Array
+                  const teachersList = b.assignedTeachers || (b.assignedTeacher ? [b.assignedTeacher] : []);
+                  
+                  return (
                   <tr key={b.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4">
+                    <td className="p-4 align-top">
                       <p className="font-bold text-blue-700 mb-1">{b.itemName}</p>
                       <p className="text-xs font-medium text-gray-800">{b.displayName || b.userEmail}</p>
                       {b.department && (
@@ -671,47 +685,64 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                         </span>
                       )}
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 align-top">
                       <p className="text-sm font-medium text-gray-800">{b.date}</p>
                       <p className="text-xs text-gray-500 mt-1">{b.startTime} - {b.endTime}</p>
                     </td>
-                    <td className="p-4 max-w-[220px]">
-                      <p className="text-sm text-gray-700 line-clamp-2 mb-1" title={b.purpose}>{b.purpose}</p>
-                      {b.assignedTeacher && (
-                        <p className="text-xs text-indigo-600 font-semibold bg-indigo-50 inline-block px-2 py-1 rounded">
-                          👨‍🏫 {b.assignedTeacher}
-                        </p>
+                    <td className="p-4 align-top">
+                      <p className="text-sm text-gray-700 mb-2" title={b.purpose}>{b.purpose}</p>
+                      {teachersList.length > 0 && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-gray-500 font-semibold">ครูผู้ดูแล:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {teachersList.map(t => (
+                              <span key={t} className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded">
+                                👨‍🏫 {t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </td>
-                    <td className="p-4 text-center">
+                    <td className="p-4 text-center align-top">
                       <Badge status={b.status} />
                     </td>
-                    <td className="p-4 text-center">
+                    <td className="p-4 text-center align-top">
                       
-                      {/* ส่วนของหัวหน้าฝ่าย: รับทราบและมอบหมาย */}
+                      {/* ==================================================== */}
+                      {/* ส่วนของหัวหน้าฝ่าย: รับทราบและเลือกครูดูแล (กรอบสีเหลือง) */}
+                      {/* ==================================================== */}
                       {b.status === 'pending_head' && (
-                        <div className="flex flex-col items-center gap-2">
-                          <select 
-                            className="w-full text-xs p-1.5 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-500 bg-white"
-                            value={assignSelections[b.id] || ""}
-                            onChange={(e) => handleAssignChange(b.id, e.target.value)}
-                          >
-                            <option value="">-- ไม่ระบุครูผู้ดูแล --</option>
-                            {ASSIGNABLE_TEACHERS.map(teacher => (
-                              <option key={teacher} value={teacher}>{teacher}</option>
-                            ))}
-                          </select>
+                        <div className="flex flex-col items-center gap-2 bg-amber-50/50 p-3 rounded-xl border border-amber-200 shadow-sm">
+                          <span className="text-xs font-bold text-amber-800 w-full text-left border-b border-amber-200 pb-1 flex items-center gap-1">
+                            👑 สำหรับหัวหน้าฝ่าย
+                          </span>
                           
-                          <div className="flex justify-center gap-2 w-full">
+                          <div className="flex flex-col items-start gap-1.5 w-full text-left bg-white p-2.5 border border-amber-100 rounded-lg">
+                            <span className="text-[11px] font-semibold text-gray-600 mb-1">เลือกครูผู้ดูแล (เลือกได้มากกว่า 1 คน):</span>
+                            {ASSIGNABLE_TEACHERS.map(teacher => (
+                              <label key={teacher} className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 w-full p-1 rounded transition-colors">
+                                <input 
+                                  type="checkbox" 
+                                  className="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-3.5 h-3.5"
+                                  checked={(assignSelections[b.id] || []).includes(teacher)}
+                                  onChange={() => handleAssignToggle(b.id, teacher)}
+                                />
+                                {teacher}
+                              </label>
+                            ))}
+                          </div>
+                          
+                          <div className="flex justify-center gap-2 w-full mt-1">
                             <button 
                               onClick={() => handleUpdateStatus(b.id, 'pending_deputy', assignSelections[b.id])}
-                              className="flex-1 bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center justify-center gap-1"
+                              className="flex-1 bg-amber-500 text-white hover:bg-amber-600 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center justify-center gap-1"
                             >
                               <CheckSquare size={14} /> หัวหน้ารับทราบ
                             </button>
                             <button 
                               onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                              className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                              className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                             >
                               ปฏิเสธ
                             </button>
@@ -719,51 +750,63 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                         </div>
                       )}
 
-                      {/* ส่วนของรอง ผอ.: อนุมัติเท่านั้น */}
+                      {/* ==================================================== */}
+                      {/* ส่วนของรอง ผอ.: อนุมัติเท่านั้น (กรอบสีน้ำเงิน)          */}
+                      {/* ==================================================== */}
                       {b.status === 'pending_deputy' && (
-                        <div className="flex justify-center gap-2">
-                          <button 
-                            onClick={() => handleUpdateStatus(b.id, 'approved')}
-                            className="bg-green-600 text-white hover:bg-green-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1"
-                          >
-                            <CheckCircle size={14} /> รอง ผอ. อนุมัติ
-                          </button>
-                          <button 
-                            onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                            className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                          >
-                            ไม่อนุมัติ
-                          </button>
+                        <div className="flex flex-col items-center gap-2 bg-blue-50/50 p-3 rounded-xl border border-blue-200 shadow-sm">
+                          <span className="text-xs font-bold text-blue-800 w-full text-left border-b border-blue-200 pb-1 flex items-center gap-1">
+                            👑 สำหรับรองผู้อำนวยการ
+                          </span>
+                          <p className="text-[10px] text-gray-500 w-full text-left mt-1 mb-1">หัวหน้าฝ่ายรับทราบและมอบหมายผู้ดูแลเรียบร้อยแล้ว</p>
+                          <div className="flex justify-center gap-2 w-full">
+                            <button 
+                              onClick={() => handleUpdateStatus(b.id, 'approved')}
+                              className="flex-1 bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center justify-center gap-1"
+                            >
+                              <CheckCircle size={14} /> รอง ผอ. อนุมัติ
+                            </button>
+                            <button 
+                              onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                              className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
+                            >
+                              ไม่อนุมัติ
+                            </button>
+                          </div>
                         </div>
                       )}
 
-                      {/* ปุ่มจัดการสำหรับสถานะที่เสร็จสิ้นแล้ว */}
+                      {/* ==================================================== */}
+                      {/* ปุ่มจัดการสำหรับสถานะที่เสร็จสิ้นแล้ว                    */}
+                      {/* ==================================================== */}
                       {(b.status === 'approved' || b.status === 'rejected') && (
-                        <div className="flex justify-center items-center gap-2">
-                          <span className="text-xs text-gray-400 mr-1 hidden sm:inline-block">ดำเนินการแล้ว</span>
-                          
-                          {b.status === 'approved' && (
+                        <div className="flex flex-col items-center gap-2">
+                          <span className="text-[11px] font-semibold text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
+                            การพิจารณาเสร็จสิ้น
+                          </span>
+                          <div className="flex justify-center items-center gap-2 mt-1">
+                            {b.status === 'approved' && (
+                              <button 
+                                onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                                className="text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-amber-200"
+                                title="ยกเลิกการอนุมัติ (เปลี่ยนเป็นไม่อนุมัติ)"
+                              >
+                                <XCircle size={14} /> ยกเลิก
+                              </button>
+                            )}
                             <button 
-                              onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                              className="text-amber-600 bg-amber-50 hover:bg-amber-100 p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-amber-200"
-                              title="ยกเลิกการอนุมัติ (เปลี่ยนเป็นไม่อนุมัติ)"
+                              onClick={() => handleDeleteBooking(b.id)}
+                              className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-red-200"
+                              title="ลบรายการนี้ถาวร"
                             >
-                              <XCircle size={14} /> ยกเลิก
+                              <Trash2 size={14} /> ลบ
                             </button>
-                          )}
-                          
-                          <button 
-                            onClick={() => handleDeleteBooking(b.id)}
-                            className="text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-red-200"
-                            title="ลบรายการนี้ถาวร"
-                          >
-                            <Trash2 size={14} /> ลบ
-                          </button>
+                          </div>
                         </div>
                       )}
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
