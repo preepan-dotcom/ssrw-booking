@@ -583,15 +583,35 @@ const CalendarView = ({ bookings, items }) => {
 };
 
 // --- 3. Admin: Manage Bookings ---
+const ASSIGNABLE_TEACHERS = [
+  "นายพีรพัฒน์ พลเรือง (ครูแพนเตอร์)",
+  "นายพงศ์พล พากุล (ครูแม็ก)",
+  "นายธณกร กูฎโสม (ครูอั๋น)"
+];
+
 const AdminManageBookings = ({ bookings, showToast }) => {
-  const handleUpdateStatus = async (bookingId, newStatus) => {
+  const [assignSelections, setAssignSelections] = useState({});
+
+  const handleAssignChange = (bookingId, teacherName) => {
+    setAssignSelections(prev => ({ ...prev, [bookingId]: teacherName }));
+  };
+
+  const handleUpdateStatus = async (bookingId, newStatus, assignedTeacher = null) => {
     try {
-      await updateDoc(getBookingDoc(bookingId), { status: newStatus });
+      const updateData = { status: newStatus };
+      if (assignedTeacher) {
+        updateData.assignedTeacher = assignedTeacher;
+      }
+      
+      await updateDoc(getBookingDoc(bookingId), updateData);
       
       const currentBooking = bookings.find(b => b.id === bookingId);
       
       let statusText = "";
-      if (newStatus === 'pending_deputy') statusText = "✅ หัวหน้าฝ่ายรับทราบแล้ว (รอรอง ผอ. อนุมัติ)";
+      if (newStatus === 'pending_deputy') {
+        statusText = "✅ หัวหน้าฝ่ายรับทราบแล้ว (รอรอง ผอ. อนุมัติ)";
+        if (assignedTeacher) statusText += `\n👨‍🏫 ผู้ดูแล: ${assignedTeacher}`;
+      }
       else if (newStatus === 'approved') statusText = "🎉 รอง ผอ. อนุมัติเรียบร้อยแล้ว";
       else if (newStatus === 'rejected') statusText = "❌ ไม่อนุมัติ/ยกเลิกคำขอ";
 
@@ -621,7 +641,7 @@ const AdminManageBookings = ({ bookings, showToast }) => {
     <div className="space-y-6 print:hidden">
       <div>
         <h2 className="text-2xl font-bold text-gray-800">จัดการอนุมัติคำขอจอง</h2>
-        <p className="text-gray-500 mt-1">ขั้นตอนการรับทราบและอนุมัติการขอใช้อาคารสถานที่และอุปกรณ์</p>
+        <p className="text-gray-500 mt-1">ขั้นตอนการรับทราบ มอบหมายผู้ดูแล และอนุมัติการขอใช้อาคารสถานที่และอุปกรณ์</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -631,9 +651,9 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                 <tr className="bg-gray-50 border-b border-gray-100 text-gray-600 text-sm">
                   <th className="p-4 font-semibold">ผู้ขอ/รายการ</th>
                   <th className="p-4 font-semibold">วันและเวลา</th>
-                  <th className="p-4 font-semibold">วัตถุประสงค์</th>
+                  <th className="p-4 font-semibold">รายละเอียด & ผู้ดูแล</th>
                   <th className="p-4 font-semibold text-center">สถานะปัจจุบัน</th>
-                  <th className="p-4 font-semibold text-center">การจัดการ</th>
+                  <th className="p-4 font-semibold text-center min-w-[280px]">การจัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -655,30 +675,51 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                       <p className="text-sm font-medium text-gray-800">{b.date}</p>
                       <p className="text-xs text-gray-500 mt-1">{b.startTime} - {b.endTime}</p>
                     </td>
-                    <td className="p-4 max-w-[200px]">
-                      <p className="text-sm text-gray-700 line-clamp-2" title={b.purpose}>{b.purpose}</p>
+                    <td className="p-4 max-w-[220px]">
+                      <p className="text-sm text-gray-700 line-clamp-2 mb-1" title={b.purpose}>{b.purpose}</p>
+                      {b.assignedTeacher && (
+                        <p className="text-xs text-indigo-600 font-semibold bg-indigo-50 inline-block px-2 py-1 rounded">
+                          👨‍🏫 {b.assignedTeacher}
+                        </p>
+                      )}
                     </td>
                     <td className="p-4 text-center">
                       <Badge status={b.status} />
                     </td>
                     <td className="p-4 text-center">
+                      
+                      {/* ส่วนของหัวหน้าฝ่าย: รับทราบและมอบหมาย */}
                       {b.status === 'pending_head' && (
-                        <div className="flex justify-center gap-2">
-                          <button 
-                            onClick={() => handleUpdateStatus(b.id, 'pending_deputy')}
-                            className="bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center gap-1"
+                        <div className="flex flex-col items-center gap-2">
+                          <select 
+                            className="w-full text-xs p-1.5 border border-gray-300 rounded-lg focus:outline-none focus:border-amber-500 bg-white"
+                            value={assignSelections[b.id] || ""}
+                            onChange={(e) => handleAssignChange(b.id, e.target.value)}
                           >
-                            <CheckSquare size={14} /> หัวหน้าฝ่ายรับทราบ
-                          </button>
-                          <button 
-                            onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                            className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                          >
-                            ปฏิเสธ
-                          </button>
+                            <option value="">-- ไม่ระบุครูผู้ดูแล --</option>
+                            {ASSIGNABLE_TEACHERS.map(teacher => (
+                              <option key={teacher} value={teacher}>{teacher}</option>
+                            ))}
+                          </select>
+                          
+                          <div className="flex justify-center gap-2 w-full">
+                            <button 
+                              onClick={() => handleUpdateStatus(b.id, 'pending_deputy', assignSelections[b.id])}
+                              className="flex-1 bg-amber-500 text-white hover:bg-amber-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center justify-center gap-1"
+                            >
+                              <CheckSquare size={14} /> หัวหน้ารับทราบ
+                            </button>
+                            <button 
+                              onClick={() => handleUpdateStatus(b.id, 'rejected')}
+                              className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                            >
+                              ปฏิเสธ
+                            </button>
+                          </div>
                         </div>
                       )}
 
+                      {/* ส่วนของรอง ผอ.: อนุมัติเท่านั้น */}
                       {b.status === 'pending_deputy' && (
                         <div className="flex justify-center gap-2">
                           <button 
@@ -691,11 +732,12 @@ const AdminManageBookings = ({ bookings, showToast }) => {
                             onClick={() => handleUpdateStatus(b.id, 'rejected')}
                             className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                           >
-                            ปฏิเสธ
+                            ไม่อนุมัติ
                           </button>
                         </div>
                       )}
 
+                      {/* ปุ่มจัดการสำหรับสถานะที่เสร็จสิ้นแล้ว */}
                       {(b.status === 'approved' || b.status === 'rejected') && (
                         <div className="flex justify-center items-center gap-2">
                           <span className="text-xs text-gray-400 mr-1 hidden sm:inline-block">ดำเนินการแล้ว</span>
