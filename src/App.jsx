@@ -20,7 +20,7 @@ import {
 import { 
   Calendar as CalendarIcon, MapPin, Monitor, CheckCircle, XCircle, 
   Clock, Plus, Trash2, LogOut, User as UserIcon, 
-  Menu, X, Bell, Info, Mail, PieChart, Printer, CheckSquare, ChevronLeft, ChevronRight
+  Menu, X, Bell, Info, Mail, PieChart, Printer, CheckSquare, ChevronLeft, ChevronRight, Search
 } from 'lucide-react';
 
 // --- กำหนดระดับสิทธิ์ให้แต่ละอีเมล (Role-based Access) ---
@@ -87,7 +87,7 @@ const Toast = ({ message, type, onClose }) => {
   const Icon = type === 'success' ? CheckCircle : type === 'error' ? XCircle : Info;
 
   return (
-    <div className={`fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-bounce`}>
+    <div className={`fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-bounce print:hidden`}>
       <Icon size={20} />
       <span className="font-medium">{message}</span>
     </div>
@@ -97,7 +97,7 @@ const Toast = ({ message, type, onClose }) => {
 const Modal = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-40 p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-40 p-4 print:hidden">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-4 border-b flex justify-between items-center bg-gray-50">
           <h2 className="text-xl font-bold text-gray-800">{title}</h2>
@@ -138,7 +138,7 @@ const Badge = ({ status }) => {
 const NavBtn = ({ active, onClick, Icon, label }) => (
   <button 
     onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all
+    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all print:hidden
       ${active ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
   >
     <Icon size={18} /> {label}
@@ -148,7 +148,7 @@ const NavBtn = ({ active, onClick, Icon, label }) => (
 const MobileNavBtn = ({ active, onClick, Icon, label }) => (
   <button 
     onClick={onClick}
-    className={`flex w-full items-center gap-3 px-4 py-3 rounded-lg text-left font-medium transition-all
+    className={`flex w-full items-center gap-3 px-4 py-3 rounded-lg text-left font-medium transition-all print:hidden
       ${active ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
   >
     <Icon size={18} /> {label}
@@ -173,6 +173,12 @@ const DEPARTMENTS = [
   "กลุ่มสาระฯ ภาษาต่างประเทศ",
   "กิจกรรมพัฒนาผู้เรียน",
   "อื่นๆ"
+];
+
+const ASSIGNABLE_TEACHERS = [
+  "นายพีรพัฒน์ พลเรือง (ครูแพนเตอร์)",
+  "นายพงศ์พล พากุล (ครูแม็ก)",
+  "นายธณกร กูฎโสม (ครูอั๋น)"
 ];
 
 // --- 1. User: Browse & Book Items ---
@@ -459,7 +465,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   );
 };
 
-// // --- 2. Calendar View ---
+// --- 2. Calendar View ---
 const CalendarView = ({ bookings, items }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayBookings, setSelectedDayBookings] = useState([]);
@@ -561,9 +567,7 @@ const CalendarView = ({ bookings, items }) => {
           ) : (
             <div className="space-y-3">
               {selectedDayBookings.map(b => {
-                // ดึงรายชื่อครูผู้ดูแลออกมา (รองรับทั้งแบบ Array ใหม่และ String เก่า)
                 const teachersList = b.assignedTeachers || (b.assignedTeacher ? [b.assignedTeacher] : []);
-                
                 return (
                 <div key={b.id} className="p-4 rounded-xl border border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
@@ -577,8 +581,6 @@ const CalendarView = ({ bookings, items }) => {
                       | <strong>เวลา:</strong> {b.startTime} - {b.endTime} น.
                     </p>
                     <p className="text-xs text-gray-600 mt-1"><strong>วัตถุประสงค์:</strong> {b.purpose}</p>
-                    
-                    {/* เพิ่มการแสดงผลครูผู้ดูแล */}
                     {teachersList.length > 0 && (
                       <p className="text-xs text-indigo-700 mt-1.5 font-semibold bg-indigo-50 inline-block px-2 py-1 rounded border border-indigo-100">
                         👨‍🏫 ผู้ดูแล: {teachersList.join(', ')}
@@ -596,16 +598,14 @@ const CalendarView = ({ bookings, items }) => {
 };
 
 // --- 3. Admin: Manage Bookings ---
-const ASSIGNABLE_TEACHERS = [
-  "นายพีรพัฒน์ พลเรือง (ครูแพนเตอร์)",
-  "นายพงศ์พล พากุล (ครูแม็ก)",
-  "นายธณกร กูฎโสม (ครูอั๋น)"
-];
-
 const AdminManageBookings = ({ bookings, showToast, userRole }) => {
   const [assignSelections, setAssignSelections] = useState({});
+  
+  // เพิ่ม State สำหรับ Filter
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
-  // กำหนดสิทธิ์การกดปุ่มตาม Role ที่รับเข้ามา
   const canAcknowledge = userRole === 'admin' || userRole === 'head';
   const canApprove = userRole === 'admin' || userRole === 'executive';
   const canReject = userRole === 'admin' || userRole === 'head' || userRole === 'executive';
@@ -631,23 +631,16 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
       await updateDoc(getBookingDoc(bookingId), updateData);
       
       const currentBooking = bookings.find(b => b.id === bookingId);
-      
       const teachersList = updateData.assignedTeachers || currentBooking?.assignedTeachers || (currentBooking?.assignedTeacher ? [currentBooking.assignedTeacher] : []);
       
       let statusText = "";
       if (newStatus === 'pending_deputy') {
         statusText = "✅ หัวหน้าฝ่ายรับทราบแล้ว (รอรอง ผอ. อนุมัติ)";
-        if (teachersList.length > 0) {
-          statusText += `\n👨‍🏫 ผู้ดูแล: ${teachersList.join(', ')}`;
-        }
-      }
-      else if (newStatus === 'approved') {
+        if (teachersList.length > 0) statusText += `\n👨‍🏫 ผู้ดูแล: ${teachersList.join(', ')}`;
+      } else if (newStatus === 'approved') {
         statusText = "🎉 รอง ผอ. อนุมัติเรียบร้อยแล้ว";
-        if (teachersList.length > 0) {
-          statusText += `\n👨‍🏫 แจ้งเตือนผู้ดูแล: ${teachersList.join(', ')}\n(โปรดเตรียมความพร้อมสถานที่และอุปกรณ์ครับ)`;
-        }
-      }
-      else if (newStatus === 'rejected') {
+        if (teachersList.length > 0) statusText += `\n👨‍🏫 แจ้งเตือนผู้ดูแล: ${teachersList.join(', ')}\n(โปรดเตรียมความพร้อมสถานที่และอุปกรณ์ครับ)`;
+      } else if (newStatus === 'rejected') {
         statusText = "❌ ไม่อนุมัติ/ยกเลิกคำขอ";
       }
 
@@ -655,7 +648,6 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
         const notifyMsg = `📝 มีการอัปเดตสถานะการขออนุญาต\n\n📌 สถานที่: ${currentBooking.itemName}\n📅 วันที่: ${currentBooking.date}\n⏰ เวลา: ${currentBooking.startTime} - ${currentBooking.endTime} น.\n👤 ผู้ขออนุญาต: ${currentBooking.displayName || currentBooking.userEmail}\n📋 สถานะใหม่: ${statusText}`;
         await sendLineMessage(notifyMsg);
       }
-
       showToast('อัปเดตสถานะเรียบร้อยแล้ว');
     } catch (error) {
       showToast('เกิดข้อผิดพลาดในการอัปเดตสถานะ', 'error');
@@ -673,11 +665,53 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
     }
   };
 
+  // กรองข้อมูลตาม Filter
+  const filteredBookings = bookings.filter(b => {
+    const matchSearch = b.itemName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        (b.displayName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchDate = filterDate === '' || b.date === filterDate;
+    const matchStatus = filterStatus === 'all' || b.status === filterStatus;
+    return matchSearch && matchDate && matchStatus;
+  });
+
   return (
     <div className="space-y-6 print:hidden">
       <div>
         <h2 className="text-2xl font-bold text-gray-800">จัดการอนุมัติคำขออนุญาต</h2>
         <p className="text-gray-500 mt-1">ขั้นตอนการรับทราบ มอบหมายผู้ดูแล และอนุมัติการขอใช้อาคารสถานที่และอุปกรณ์</p>
+      </div>
+
+      {/* ส่วนตัวกรองค้นหา */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="ค้นหาชื่อผู้ขอ หรือ สถานที่..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm"
+          />
+        </div>
+        <div className="flex gap-4 w-full md:w-auto">
+          <input 
+            type="date" 
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="flex-1 md:w-40 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-white"
+          />
+          <select 
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="flex-1 md:w-48 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 text-sm bg-white"
+          >
+            <option value="all">สถานะทั้งหมด</option>
+            <option value="pending_head">รอหัวหน้าฝ่ายรับทราบ</option>
+            <option value="pending_deputy">รอรอง ผอ. อนุมัติ</option>
+            <option value="approved">อนุมัติเรียบร้อย</option>
+            <option value="rejected">ไม่อนุมัติ</option>
+          </select>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -693,12 +727,11 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {bookings.length === 0 && (
-                  <tr><td colSpan="5" className="p-8 text-center text-gray-500">ไม่มีคำขออนุญาตในระบบ</td></tr>
+                {filteredBookings.length === 0 && (
+                  <tr><td colSpan="5" className="p-8 text-center text-gray-500">ไม่พบข้อมูลที่ค้นหา</td></tr>
                 )}
-                {bookings.map(b => {
+                {filteredBookings.map(b => {
                   const teachersList = b.assignedTeachers || (b.assignedTeacher ? [b.assignedTeacher] : []);
-                  
                   return (
                   <tr key={b.id} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4 align-top">
@@ -733,16 +766,11 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
                       <Badge status={b.status} />
                     </td>
                     <td className="p-4 text-center align-top">
-                      
-                      {/* ==================================================== */}
-                      {/* ส่วนของหัวหน้าฝ่าย: รับทราบและเลือกครูดูแล */}
-                      {/* ==================================================== */}
                       {b.status === 'pending_head' && canAcknowledge && (
                         <div className="flex flex-col items-center gap-2 bg-amber-50/50 p-3 rounded-xl border border-amber-200 shadow-sm">
                           <span className="text-xs font-bold text-amber-800 w-full text-left border-b border-amber-200 pb-1 flex items-center gap-1">
                             👑 สำหรับหัวหน้าฝ่าย
                           </span>
-                          
                           <div className="flex flex-col items-start gap-1.5 w-full text-left bg-white p-2.5 border border-amber-100 rounded-lg">
                             <span className="text-[11px] font-semibold text-gray-600 mb-1">เลือกครูผู้ดูแล (เลือกได้มากกว่า 1 คน):</span>
                             {ASSIGNABLE_TEACHERS.map(teacher => (
@@ -757,36 +785,23 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
                               </label>
                             ))}
                           </div>
-                          
                           <div className="flex justify-center gap-2 w-full mt-1">
-                            <button 
-                              onClick={() => handleUpdateStatus(b.id, 'pending_deputy', assignSelections[b.id])}
-                              className="flex-1 bg-amber-500 text-white hover:bg-amber-600 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center justify-center gap-1"
-                            >
+                            <button onClick={() => handleUpdateStatus(b.id, 'pending_deputy', assignSelections[b.id])} className="flex-1 bg-amber-500 text-white hover:bg-amber-600 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center justify-center gap-1">
                               <CheckSquare size={14} /> หัวหน้ารับทราบ
                             </button>
                             {canReject && (
-                              <button 
-                                onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                                className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                              >
+                              <button onClick={() => handleUpdateStatus(b.id, 'rejected')} className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors">
                                 ปฏิเสธ
                               </button>
                             )}
                           </div>
                         </div>
                       )}
-
-                      {/* กรณีสถานะเป็น pending_head แต่ผู้ใช้งานไม่มีสิทธิ์รับทราบ (เช่น เป็นผู้บริหาร) */}
                       {b.status === 'pending_head' && !canAcknowledge && (
                         <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200 inline-block">
                           ⏳ รอหัวหน้าฝ่ายดำเนินการ
                         </span>
                       )}
-
-                      {/* ==================================================== */}
-                      {/* ส่วนของรอง ผอ.: อนุมัติเท่านั้น */}
-                      {/* ==================================================== */}
                       {b.status === 'pending_deputy' && canApprove && (
                         <div className="flex flex-col items-center gap-2 bg-blue-50/50 p-3 rounded-xl border border-blue-200 shadow-sm">
                           <span className="text-xs font-bold text-blue-800 w-full text-left border-b border-blue-200 pb-1 flex items-center gap-1">
@@ -794,34 +809,22 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
                           </span>
                           <p className="text-[10px] text-gray-500 w-full text-left mt-1 mb-1">หัวหน้าฝ่ายรับทราบและมอบหมายผู้ดูแลเรียบร้อยแล้ว</p>
                           <div className="flex justify-center gap-2 w-full">
-                            <button 
-                              onClick={() => handleUpdateStatus(b.id, 'approved')}
-                              className="flex-1 bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center justify-center gap-1"
-                            >
+                            <button onClick={() => handleUpdateStatus(b.id, 'approved')} className="flex-1 bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center justify-center gap-1">
                               <CheckCircle size={14} /> รอง ผอ. อนุมัติ
                             </button>
                             {canReject && (
-                              <button 
-                                onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                                className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
-                              >
+                              <button onClick={() => handleUpdateStatus(b.id, 'rejected')} className="bg-red-100 text-red-700 hover:bg-red-600 hover:text-white px-3 py-2 rounded-lg text-xs font-semibold transition-colors">
                                 ไม่อนุมัติ
                               </button>
                             )}
                           </div>
                         </div>
                       )}
-
-                      {/* กรณีสถานะเป็น pending_deputy แต่ผู้ใช้งานไม่มีสิทธิ์อนุมัติ (เช่น เป็นหัวหน้าฝ่าย) */}
                       {b.status === 'pending_deputy' && !canApprove && (
                         <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 inline-block">
                           ⏳ รอรองผู้อำนวยการดำเนินการ
                         </span>
                       )}
-
-                      {/* ==================================================== */}
-                      {/* ปุ่มจัดการสำหรับสถานะที่เสร็จสิ้นแล้ว */}
-                      {/* ==================================================== */}
                       {(b.status === 'approved' || b.status === 'rejected') && (
                         <div className="flex flex-col items-center gap-2">
                           <span className="text-[11px] font-semibold text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
@@ -829,21 +832,12 @@ const AdminManageBookings = ({ bookings, showToast, userRole }) => {
                           </span>
                           <div className="flex justify-center items-center gap-2 mt-1">
                             {b.status === 'approved' && canApprove && (
-                              <button 
-                                onClick={() => handleUpdateStatus(b.id, 'rejected')}
-                                className="text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-amber-200"
-                                title="ยกเลิกการอนุมัติ (เปลี่ยนเป็นไม่อนุมัติ)"
-                              >
+                              <button onClick={() => handleUpdateStatus(b.id, 'rejected')} className="text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-amber-200" title="ยกเลิกการอนุมัติ (เปลี่ยนเป็นไม่อนุมัติ)">
                                 <XCircle size={14} /> ยกเลิก
                               </button>
                             )}
-                            {/* เฉพาะ Admin หรือคนมีสิทธิ์ reject ถึงจะลบได้ */}
                             {canReject && (
-                              <button 
-                                onClick={() => handleDeleteBooking(b.id)}
-                                className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-red-200"
-                                title="ลบรายการนี้ถาวร"
-                              >
+                              <button onClick={() => handleDeleteBooking(b.id)} className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-xs border border-red-200" title="ลบรายการนี้ถาวร">
                                 <Trash2 size={14} /> ลบ
                               </button>
                             )}
@@ -869,7 +863,6 @@ const UserBookings = ({ bookings }) => {
         <h2 className="text-2xl font-bold text-gray-800">ประวัติการขออนุญาตของฉัน</h2>
         <p className="text-gray-500 mt-1">ติดตามสถานะคำขอเสนอผ่านหัวหน้าฝ่ายและรองผู้อำนวยการ</p>
       </div>
-
       {bookings.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl shadow-sm text-center text-gray-500 border border-gray-100">
           คุณยังไม่มีประวัติการขออนุญาต
@@ -1053,13 +1046,18 @@ const AdminManageItems = ({ items, showToast }) => {
 
 // --- 6. Admin: Reports ---
 const AdminReports = ({ bookings, items }) => {
+  // สร้าง Filter State สำหรับการพิมพ์รายงาน
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [filterDepartment, setFilterDepartment] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   const filteredBookings = bookings.filter(b => {
     if (!b.date) return false;
     if (startDate && b.date < startDate) return false;
     if (endDate && b.date > endDate) return false;
+    if (filterDepartment !== 'all' && b.department !== filterDepartment) return false;
+    if (filterStatus !== 'all' && b.status !== filterStatus) return false;
     return true;
   });
 
@@ -1067,6 +1065,12 @@ const AdminReports = ({ bookings, items }) => {
   const approved = filteredBookings.filter(b => b.status === 'approved').length;
   const rejected = filteredBookings.filter(b => b.status === 'rejected').length;
   const pending = filteredBookings.filter(b => b.status.startsWith('pending')).length;
+
+  const getStatusLabel = (status) => {
+    if (status === 'approved') return 'อนุมัติ';
+    if (status === 'rejected') return 'ไม่อนุมัติ';
+    return 'รอพิจารณา';
+  };
 
   return (
     <div className="space-y-6">
@@ -1083,22 +1087,114 @@ const AdminReports = ({ bookings, items }) => {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ส่วนตัวกรองข้อมูลสรุป */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-end print:hidden">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">ตั้งแต่วันที่</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">ถึงวันที่</label>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">ฝ่ายงาน/กลุ่มสาระ</label>
+          <select value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[150px]">
+            <option value="all">ทุกฝ่ายงาน</option>
+            {DEPARTMENTS.map(dep => <option key={dep} value={dep}>{dep}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">สถานะ</label>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white min-w-[150px]">
+            <option value="all">ทุกสถานะ</option>
+            <option value="approved">อนุมัติเรียบร้อย</option>
+            <option value="rejected">ไม่อนุมัติ</option>
+            <option value="pending_head">รอหัวหน้าฝ่ายรับทราบ</option>
+            <option value="pending_deputy">รอรอง ผอ. อนุมัติ</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:hidden">
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-          <p className="text-sm font-medium text-gray-500">คำขอทั้งหมด</p>
+          <p className="text-sm font-medium text-gray-500">ตามเงื่อนไขที่เลือก (รายการ)</p>
           <p className="text-3xl font-bold text-gray-800 mt-2">{total}</p>
         </div>
         <div className="bg-green-50 p-5 rounded-2xl border border-green-100 shadow-sm">
-          <p className="text-sm font-medium text-green-700">อนุมัติแล้ว</p>
+          <p className="text-sm font-medium text-green-700">อนุมัติแล้ว (รายการ)</p>
           <p className="text-3xl font-bold text-green-800 mt-2">{approved}</p>
         </div>
         <div className="bg-red-50 p-5 rounded-2xl border border-red-100 shadow-sm">
-          <p className="text-sm font-medium text-red-700">ไม่อนุมัติ</p>
+          <p className="text-sm font-medium text-red-700">ไม่อนุมัติ (รายการ)</p>
           <p className="text-3xl font-bold text-red-800 mt-2">{rejected}</p>
         </div>
         <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 shadow-sm">
-          <p className="text-sm font-medium text-amber-700">อยู่ระหว่างพิจารณา</p>
+          <p className="text-sm font-medium text-amber-700">อยู่ระหว่างพิจารณา (รายการ)</p>
           <p className="text-3xl font-bold text-amber-800 mt-2">{pending}</p>
+        </div>
+      </div>
+
+      {/* ========================================== */}
+      {/* 📄 รูปแบบหน้ากระดาษสำหรับสั่งพิมพ์ (Print Layout) */}
+      {/* ========================================== */}
+      <div className="hidden print:block print:bg-white print:p-8 print:w-full print:text-black">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold mb-1">บันทึกข้อความ</h1>
+          <h2 className="text-xl font-bold mb-2">รายงานการขออนุญาตใช้อาคารสถานที่และอุปกรณ์</h2>
+          <h3 className="text-lg font-normal">โรงเรียนศรีสองรักษ์วิทยา</h3>
+          <p className="mt-2 text-sm">
+            ประจำช่วงวันที่: {startDate ? new Date(startDate).toLocaleDateString('th-TH') : '-'} ถึง {endDate ? new Date(endDate).toLocaleDateString('th-TH') : '-'}
+          </p>
+        </div>
+
+        <table className="w-full border-collapse border border-black text-sm mb-12">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-black px-2 py-1 text-center w-12">ลำดับ</th>
+              <th className="border border-black px-2 py-1 text-center w-24">วันที่ใช้งาน</th>
+              <th className="border border-black px-2 py-1 text-left w-48">สถานที่/อุปกรณ์</th>
+              <th className="border border-black px-2 py-1 text-left w-32">ผู้ขออนุญาต/ฝ่าย</th>
+              <th className="border border-black px-2 py-1 text-left">วัตถุประสงค์</th>
+              <th className="border border-black px-2 py-1 text-center w-24">สถานะ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredBookings.length > 0 ? (
+              filteredBookings.map((b, index) => (
+                <tr key={b.id}>
+                  <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
+                  <td className="border border-black px-2 py-1 text-center">{new Date(b.date).toLocaleDateString('th-TH')}</td>
+                  <td className="border border-black px-2 py-1">{b.itemName}</td>
+                  <td className="border border-black px-2 py-1">{b.displayName}<br/><span className="text-xs">({b.department || '-'})</span></td>
+                  <td className="border border-black px-2 py-1">{b.purpose}</td>
+                  <td className="border border-black px-2 py-1 text-center">{getStatusLabel(b.status)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="6" className="border border-black px-2 py-4 text-center">ไม่มีข้อมูลตามเงื่อนไขที่เลือก</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        
+        <div className="grid grid-cols-3 gap-8 mt-16 text-center text-sm">
+          <div>
+            <p className="mb-12">ลงชื่อ .....................................................</p>
+            <p>(.....................................................)</p>
+            <p className="mt-1">ผู้จัดทำรายงาน</p>
+          </div>
+          <div>
+            <p className="mb-12">ลงชื่อ .....................................................</p>
+            <p>(.....................................................)</p>
+            <p className="mt-1">หัวหน้าฝ่ายบริหารงานทั่วไป</p>
+          </div>
+          <div>
+            <p className="mb-12">ลงชื่อ .....................................................</p>
+            <p>(.....................................................)</p>
+            <p className="mt-1">รองผู้อำนวยการโรงเรียน / ผู้อำนวยการ</p>
+          </div>
         </div>
       </div>
     </div>
@@ -1131,7 +1227,6 @@ export default function App() {
           return;
         }
 
-        // กำหนด Role ตามออบเจกต์ USER_ROLES ถ้าไม่มีให้เป็น user ธรรมดา
         const role = USER_ROLES[currentUser.email] || 'user';
         
         const profileData = {
@@ -1255,7 +1350,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <header className="bg-white shadow-sm sticky top-0 z-30">
+      <header className="bg-white shadow-sm sticky top-0 z-30 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
