@@ -358,9 +358,8 @@ export default function App() {
         {isAdmin && activeTab === 'admin-reports' && <AdminReports bookings={bookings} items={items} />}
       </main>
 
-      {toast && <Toast message={toast.message} type={toast.typeนี่คือโค้ดไฟล์ `App_2.jsx` ที่แก้ไขส่วนของการแจ้งเตือน LINE เรียบร้อยแล้วครับ คุณสามารถคัดลอกโค้ดทั้งหมดนี้ไปวางทับไฟล์เดิมได้เลยครับ:
+      {toast && <Toast message={toast.message} type={toast.type} />}
 
-```jsx
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { 
