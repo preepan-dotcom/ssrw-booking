@@ -20,8 +20,14 @@ import {
 import { 
   Calendar as CalendarIcon, MapPin, Monitor, CheckCircle, XCircle, 
   Clock, Plus, Trash2, LogOut, User as UserIcon, 
-  Menu, X, Bell, Info, Mail, PieChart, Printer, CheckSquare, ChevronLeft, ChevronRight, Search
+  Menu, X, Bell, Info, Mail, PieChart, Printer, CheckSquare, ChevronLeft, ChevronRight, Search,
+  BarChart as BarChartIcon
 } from 'lucide-react';
+// เพิ่มการนำเข้า components จาก recharts
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from 'recharts';
 
 // --- กำหนดระดับสิทธิ์ให้แต่ละอีเมล (Role-based Access) ---
 const USER_ROLES = {
@@ -1051,6 +1057,7 @@ const AdminReports = ({ bookings, items }) => {
   const [endDate, setEndDate] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [chartType, setChartType] = useState('pie'); // 'pie' or 'bar'
 
   const filteredBookings = bookings.filter(b => {
     if (!b.date) return false;
@@ -1071,6 +1078,13 @@ const AdminReports = ({ bookings, items }) => {
     if (status === 'rejected') return 'ไม่อนุมัติ';
     return 'รอพิจารณา';
   };
+
+  // เตรียมข้อมูลสำหรับกราฟสรุปตามสถานะ
+  const chartData = [
+    { name: 'อนุมัติแล้ว', value: approved, color: '#10B981' }, // green-500
+    { name: 'ไม่อนุมัติ', value: rejected, color: '#EF4444' }, // red-500
+    { name: 'อยู่ระหว่างพิจารณา', value: pending, color: '#F59E0B' }, // amber-500
+  ].filter(item => item.value > 0); // แสดงเฉพาะที่มีค่า > 0
 
   return (
     <div className="space-y-6">
@@ -1132,6 +1146,107 @@ const AdminReports = ({ bookings, items }) => {
         <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 shadow-sm">
           <p className="text-sm font-medium text-amber-700">อยู่ระหว่างพิจารณา (รายการ)</p>
           <p className="text-3xl font-bold text-amber-800 mt-2">{pending}</p>
+        </div>
+      </div>
+
+      {/* ส่วนแสดงแผนภูมิและรายการที่ใช้สรุป (เฉพาะบนหน้าจอ) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:hidden">
+        
+        {/* แผนภูมิสรุป */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+               <PieChart size={20} className="text-blue-600" />
+               สัดส่วนสถานะการขออนุญาต
+            </h3>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button 
+                onClick={() => setChartType('pie')}
+                className={`p-1.5 rounded-md text-sm flex items-center gap-1 transition-colors ${chartType === 'pie' ? 'bg-white shadow-sm text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <PieChart size={16} /> วงกลม
+              </button>
+              <button 
+                onClick={() => setChartType('bar')}
+                className={`p-1.5 rounded-md text-sm flex items-center gap-1 transition-colors ${chartType === 'bar' ? 'bg-white shadow-sm text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <BarChartIcon size={16} /> แท่ง
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex-1 flex justify-center items-center min-h-[300px]">
+            {total === 0 ? (
+               <p className="text-gray-400 text-sm">ไม่มีข้อมูลสำหรับแสดงแผนภูมิ</p>
+            ) : chartType === 'pie' ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip formatter={(value) => [`${value} รายการ`, 'จำนวน']} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                  <XAxis dataKey="name" tick={{fontSize: 12, fill: '#4B5563'}} tickLine={false} axisLine={{stroke: '#D1D5DB'}} />
+                  <YAxis allowDecimals={false} tick={{fontSize: 12, fill: '#4B5563'}} tickLine={false} axisLine={{stroke: '#D1D5DB'}} />
+                  <RechartsTooltip cursor={{fill: '#F3F4F6'}} formatter={(value) => [`${value} รายการ`, 'จำนวน']} />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                     {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* รายการที่ใช้ในการสรุป */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
+           <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                 <CheckSquare size={20} className="text-blue-600" />
+                 รายการที่นำมาสรุปผล
+              </h3>
+              <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{total} รายการ</span>
+           </div>
+           
+           <div className="flex-1 overflow-y-auto max-h-[300px] pr-2 space-y-3">
+              {filteredBookings.length === 0 ? (
+                 <p className="text-gray-400 text-sm text-center mt-10">ไม่พบรายการตามเงื่อนไขที่เลือก</p>
+              ) : (
+                 filteredBookings.map(b => (
+                    <div key={b.id} className="p-3 border border-gray-100 rounded-xl bg-gray-50/50 flex flex-col gap-1.5 hover:bg-gray-50 transition-colors">
+                       <div className="flex justify-between items-start">
+                          <span className="font-semibold text-gray-800 text-sm">{b.itemName}</span>
+                          <Badge status={b.status} />
+                       </div>
+                       <div className="flex justify-between items-end">
+                          <div className="text-xs text-gray-500">
+                             <p>📅 {b.date} | ⏰ {b.startTime} - {b.endTime}</p>
+                             <p className="mt-0.5">👤 {b.displayName} <span className="text-blue-600">({b.department || '-'})</span></p>
+                          </div>
+                       </div>
+                    </div>
+                 ))
+              )}
+           </div>
         </div>
       </div>
 
