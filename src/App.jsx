@@ -20,7 +20,7 @@ import {
 import { 
   Calendar as CalendarIcon, MapPin, Monitor, CheckCircle, XCircle, 
   Clock, Plus, Trash2, LogOut, User as UserIcon, 
-  Menu, X, Bell, Info, Mail, PieChart, Printer, CheckSquare, ChevronLeft, ChevronRight, Search,
+  Menu, X, Bell, Info, Mail, PieChart as PieChartIcon, Printer, CheckSquare, ChevronLeft, ChevronRight, Search,
   BarChart as BarChartIcon
 } from 'lucide-react';
 // เพิ่มการนำเข้า components จาก recharts
@@ -1156,7 +1156,7 @@ const AdminReports = ({ bookings, items }) => {
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-               <PieChart size={20} className="text-blue-600" />
+               <PieChartIcon size={20} className="text-blue-600" />
                สัดส่วนสถานะการขออนุญาต
             </h3>
             <div className="flex bg-gray-100 rounded-lg p-1">
@@ -1164,7 +1164,7 @@ const AdminReports = ({ bookings, items }) => {
                 onClick={() => setChartType('pie')}
                 className={`p-1.5 rounded-md text-sm flex items-center gap-1 transition-colors ${chartType === 'pie' ? 'bg-white shadow-sm text-blue-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                <PieChart size={16} /> วงกลม
+                <PieChartIcon size={16} /> วงกลม
               </button>
               <button 
                 onClick={() => setChartType('bar')}
@@ -1491,7 +1491,7 @@ export default function App() {
                   <NavBtn active={activeTab === 'admin-bookings'} onClick={() => setActiveTab('admin-bookings')} Icon={Bell} label="จัดการอนุมัติคำขอ" />
                   <NavBtn active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <NavBtn active={activeTab === 'admin-items'} onClick={() => setActiveTab('admin-items')} Icon={MapPin} label="จัดการสถานที่/อุปกรณ์" />
-                  <NavBtn active={activeTab === 'admin-reports'} onClick={() => setActiveTab('admin-reports')} Icon={PieChart} label="สรุปการใช้งาน" />
+                  <NavBtn active={activeTab === 'admin-reports'} onClick={() => setActiveTab('admin-reports')} Icon={PieChartIcon} label="สรุปการใช้งาน" />
                 </>
               )}
             </nav>
@@ -1529,7 +1529,7 @@ export default function App() {
                   <MobileNavBtn active={activeTab === 'admin-bookings'} onClick={() => {setActiveTab('admin-bookings'); setIsMobileMenuOpen(false);}} Icon={Bell} label="จัดการอนุมัติคำขอ" />
                   <MobileNavBtn active={activeTab === 'calendar'} onClick={() => {setActiveTab('calendar'); setIsMobileMenuOpen(false);}} Icon={CalendarIcon} label="ปฏิทินการใช้งาน" />
                   <MobileNavBtn active={activeTab === 'admin-items'} onClick={() => {setActiveTab('admin-items'); setIsMobileMenuOpen(false);}} Icon={MapPin} label="จัดการสถานที่/อุปกรณ์" />
-                  <MobileNavBtn active={activeTab === 'admin-reports'} onClick={() => {setActiveTab('admin-reports'); setIsMobileMenuOpen(false);}} Icon={PieChart} label="สรุปการใช้งาน" />
+                  <MobileNavBtn active={activeTab === 'admin-reports'} onClick={() => {setActiveTab('admin-reports'); setIsMobileMenuOpen(false);}} Icon={PieChartIcon} label="สรุปการใช้งาน" />
                 </>
               )}
           </div>
