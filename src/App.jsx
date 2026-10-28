@@ -3,6 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   signInWithPopup, 
+  signInWithRedirect,
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged 
@@ -1403,14 +1404,32 @@ export default function App() {
     };
   }, [user]);
 
+  // 🚀 ปรับแต่งระบบ Sign-In รองรับการบล็อก Popup บนมือถือ
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ hd: 'ssrw.ac.th' });
+    provider.setCustomParameters({ 
+      hd: 'ssrw.ac.th',
+      prompt: 'select_account'
+    });
+
     try {
       await signInWithPopup(auth, provider);
       showToast('เข้าสู่ระบบสำเร็จ');
     } catch (error) {
-      if (error.code !== 'auth/popup-closed-by-user') {
+      console.warn("Popup sign-in error:", error);
+      // หากโดนบล็อก Popup บนมือถือ ให้ Fallback กลับไปใช้ Redirect อัตโนมัติ
+      if (
+        error.code === 'auth/popup-blocked' || 
+        error.code === 'auth/cancelled-popup-request' ||
+        error.code === 'auth/popup-closed-by-user'
+      ) {
+        try {
+          showToast('กำลังนำคุณไปยังหน้าเข้าสู่ระบบ...', 'info');
+          await signInWithRedirect(auth, provider);
+        } catch (redirectErr) {
+          showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
+        }
+      } else {
         showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
       }
     }
