@@ -325,7 +325,7 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
                 <p className="text-gray-500 text-sm mb-4 line-clamp-2 min-h-[40px]">{item.description || 'ไม่มีคำอธิบายเพิ่มเติม'}</p>
                 <div className="flex items-center text-sm text-gray-600 mb-6 font-medium mt-auto">
                   <UserIcon className="mr-2" size={16} /> 
-                  รองรับ {item.capacity || '-'} คน/ชิ้น
+                  รองรับ {item.capacity || '-'}
                 </div>
                 <button 
                   onClick={() => { 
@@ -978,7 +978,7 @@ const AdminManageItems = ({ items, showToast }) => {
                </div>
                <p className="text-sm text-gray-500 mb-4 line-clamp-2 h-10">{item.description}</p>
                <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-auto">
-                  <span className="text-sm text-gray-600">รองรับ {item.capacity} คน/ชิ้น</span>
+                  <span className="text-sm text-gray-600">รองรับ {item.capacity} </span>
                   <div className="flex gap-2">
                     <button onClick={() => { setEditingItem(item); setItemImage(item.image || null); setIsModalOpen(true); }} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors text-sm font-medium">แก้ไข</button>
                     <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"><Trash2 size={18} /></button>
