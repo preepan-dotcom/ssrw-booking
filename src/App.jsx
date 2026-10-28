@@ -188,8 +188,9 @@ const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1048576) {
-        showToast('ไฟล์ภาพมีขนาดใหญ่เกินไป (ไม่เกิน 1MB)', 'error');
+      // ปรับลดลิมิตลงเหลือ 500KB เพื่อป้องกันข้อความ Base64 ขยายตัวจนเกิน 1MB
+      if (file.size > 512000) {
+        showToast('ไฟล์ภาพมีขนาดใหญ่เกินไป (กรุณาใช้ไฟล์ขนาดไม่เกิน 500KB)', 'error');
         return;
       }
       const reader = new FileReader();
