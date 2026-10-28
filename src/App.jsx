@@ -4,7 +4,6 @@ import { getAnalytics, isSupported } from "firebase/analytics";
 import { 
   getAuth, 
   signInWithPopup, 
-  signInWithRedirect,
   GoogleAuthProvider, 
   signOut, 
   onAuthStateChanged 
@@ -93,7 +92,7 @@ const sendLineMessage = async (msg) => {
 // --- Reusable UI Components ---
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
+    const timer = setTimeout(onClose, 4000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -101,9 +100,9 @@ const Toast = ({ message, type, onClose }) => {
   const Icon = type === 'success' ? CheckCircle : type === 'error' ? XCircle : Info;
 
   return (
-    <div className={`fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-bounce print:hidden`}>
-      <Icon size={20} />
-      <span className="font-medium">{message}</span>
+    <div className={`fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-bounce print:hidden max-w-md`}>
+      <Icon size={20} className="shrink-0" />
+      <span className="font-medium text-sm">{message}</span>
     </div>
   );
 };
@@ -1324,7 +1323,6 @@ const AdminReports = ({ bookings, items }) => {
   );
 };
 
-
 // --- Main Application Component ---
 export default function App() {
   const [user, setUser] = useState(null);
@@ -1412,7 +1410,7 @@ export default function App() {
     };
   }, [user]);
 
-  // 🚀 ปรับแต่งระบบ Sign-In รองรับการบล็อก Popup บนมือถือ
+  // 🚀 แก้ปัญหา Popup บล็อก & In-app Browser Storage Partitioning
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ 
@@ -1429,33 +1427,10 @@ export default function App() {
       if (
         error.code === 'auth/popup-blocked' || 
         error.code === 'auth/cancelled-popup-request' ||
-        error.code === 'auth/popup-closed-by-user'
+        error.code === 'auth/popup-closed-by-user' ||
+        error.code === 'auth/internal-error'
       ) {
-        // แนะนำให้เปิดผ่าน Chrome/Safari แทนการทำ Redirect ที่มักจะพังใน In-app Browser
-        showToast('กรุณาเปิดลิงก์นี้ผ่านเบราว์เซอร์ (Chrome/Safari) โดยตรง เพื่อเข้าสู่ระบบ', 'error');
-      } else {
-        showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
-      }
-    }
-  };
-
-    try {
-      await signInWithPopup(auth, provider);
-      showToast('เข้าสู่ระบบสำเร็จ');
-    } catch (error) {
-      console.warn("Popup sign-in error:", error);
-      // หากโดนบล็อก Popup บนมือถือ ให้ Fallback กลับไปใช้ Redirect อัตโนมัติ
-      if (
-        error.code === 'auth/popup-blocked' || 
-        error.code === 'auth/cancelled-popup-request' ||
-        error.code === 'auth/popup-closed-by-user'
-      ) {
-        try {
-          showToast('กำลังนำคุณไปยังหน้าเข้าสู่ระบบ...', 'info');
-          await signInWithRedirect(auth, provider);
-        } catch (redirectErr) {
-          showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
-        }
+        showToast('กรุณาเปิดลิงก์บนเบราว์เซอร์หลัก (Chrome/Safari) แทนการเปิดในแอป LINE หรือคัดลอกลิงก์ไปเปิดโดยตรง', 'error');
       } else {
         showToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
       }
