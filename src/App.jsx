@@ -26,6 +26,8 @@ import {
 // --- รายชื่อผู้ดูแลระบบ / ผู้บริหาร ---
 const ADMIN_EMAILS = [
   "admin@ssrw.ac.th",
+  "kamchai@ssrw.ac.th", // ผู้บรหาร
+  "apirat@ssrw.ac.th", // หัวหน้าฝ่าย
   "preepan@ssrw.ac.th" // ผู้ดูแลระบบ
 ];
 
@@ -615,18 +617,30 @@ const AdminManageBookings = ({ bookings, showToast }) => {
       
       const currentBooking = bookings.find(b => b.id === bookingId);
       
+      // ดึงรายชื่อครูผู้ดูแลจากข้อมูลที่มีอยู่ เพื่อใช้แจ้งเตือนตอนรอง ผอ. อนุมัติ
+      const teachersList = updateData.assignedTeachers || currentBooking?.assignedTeachers || (currentBooking?.assignedTeacher ? [currentBooking.assignedTeacher] : []);
+      
       let statusText = "";
       if (newStatus === 'pending_deputy') {
         statusText = "✅ หัวหน้าฝ่ายรับทราบแล้ว (รอรอง ผอ. อนุมัติ)";
-        if (assignedTeachersArray.length > 0) {
-          statusText += `\n👨‍🏫 ผู้ดูแล: ${assignedTeachersArray.join(', ')}`;
+        if (teachersList.length > 0) {
+          statusText += `\n👨‍🏫 ผู้ดูแล: ${teachersList.join(', ')}`;
         }
       }
-      else if (newStatus === 'approved') statusText = "🎉 รอง ผอ. อนุมัติเรียบร้อยแล้ว";
-      else if (newStatus === 'rejected') statusText = "❌ ไม่อนุมัติ/ยกเลิกคำขอ";
+      else if (newStatus === 'approved') {
+        statusText = "🎉 รอง ผอ. อนุมัติเรียบร้อยแล้ว";
+        // เพิ่มข้อความแจ้งเตือนครูผู้ดูแลโดยเฉพาะ
+        if (teachersList.length > 0) {
+          statusText += `\n👨‍🏫 แจ้งเตือนผู้ดูแล: ${teachersList.join(', ')}\n(โปรดเตรียมความพร้อมสถานที่และอุปกรณ์ครับ)`;
+        }
+      }
+      else if (newStatus === 'rejected') {
+        statusText = "❌ ไม่อนุมัติ/ยกเลิกคำขอ";
+      }
 
       if (currentBooking && statusText) {
-        const notifyMsg = `📝 มีการอัปเดตสถานะการจอง\n\n📌 สถานที่: ${currentBooking.itemName}\n👤 ผู้จอง: ${currentBooking.displayName || currentBooking.userEmail}\n📋 สถานะใหม่: ${statusText}`;
+        // เพิ่มข้อมูลวันที่และเวลาลงในแจ้งเตือนเพื่อให้ครูผู้ดูแลทราบกำหนดการทันที
+        const notifyMsg = `📝 มีการอัปเดตสถานะการจอง\n\n📌 สถานที่: ${currentBooking.itemName}\n📅 วันที่: ${currentBooking.date}\n⏰ เวลา: ${currentBooking.startTime} - ${currentBooking.endTime} น.\n👤 ผู้จอง: ${currentBooking.displayName || currentBooking.userEmail}\n📋 สถานะใหม่: ${statusText}`;
         await sendLineMessage(notifyMsg);
       }
 
