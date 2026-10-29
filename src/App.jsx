@@ -1577,13 +1577,15 @@ export default function App() {
         )}
       </header>
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 print:p-0 print:m-0 print:max-w-none">
-        {!hasAdminAccess && activeTab === 'browse' && <UserBrowseItems bookings={bookings} items={items} showToast={showToast} user={profile} userId={user.uid} />}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 transition-all">
+        {/* Render active tab */}
+        {!hasAdminAccess && activeTab === 'browse' && <UserBrowseItems items={items} bookings={bookings} user={user} userId={user.uid} showToast={showToast} />}
         {!hasAdminAccess && activeTab === 'my-bookings' && <UserBookings bookings={bookings.filter(b => b.userId === user.uid)} />}
+        
         {activeTab === 'calendar' && <CalendarView bookings={bookings} items={items} />}
         
-        {hasAdminAccess && activeTab === 'admin-items' && <AdminManageItems items={items} showToast={showToast} />}
         {hasAdminAccess && activeTab === 'admin-bookings' && <AdminManageBookings bookings={bookings} showToast={showToast} userRole={profile.role} />}
+        {hasAdminAccess && activeTab === 'admin-items' && <AdminManageItems items={items} showToast={showToast} />}
         {hasAdminAccess && activeTab === 'admin-reports' && <AdminReports bookings={bookings} items={items} />}
       </main>
 
