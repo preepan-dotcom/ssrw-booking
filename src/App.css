@@ -1,47 +1,28 @@
+/* นำเข้า Tailwind v4 */
 @import "tailwindcss";
 
-/* นำเข้าฟอนต์ TH Sarabun PSK จาก CDN */
-@import url('https://fonts.googleapis.com/css2?family=TH+Sarabun+PSK:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+/* 1. บังคับให้ Dark Mode ทำงานเมื่อมีคลาส .dark ที่ <html> หรือ <body> */
+@custom-variant dark (&:where(.dark, .dark *));
 
-/* กำหนดสไตล์เฉพาะสำหรับการพิมพ์เอกสาร */
+/* 2. ตั้งค่า Theme (ฟอนต์ TH Sarabun PSK) */
+@theme {
+  --font-sans: "TH Sarabun PSK", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* 3. การจัดการหน้าพิมพ์ (Print) */
 @media print {
-  /* กำหนดให้ข้อความและตารางทั้งหมดในหน้าพิมพ์ใช้ฟอนต์ TH Sarabun PSK */
-  body, table, td, th, h1, h2, h3, p, div, span {
-    font-family: 'TH Sarabun PSK', 'Sarabun', sans-serif !important;
-    color: #000000 !important;
+  @page {
+    size: A4;
+    margin: 1cm;
   }
-
-  /* ปรับขนาดตัวอักษรหัวข้อรายงาน (TH Sarabun PSK สเกลปกติจะเล็กกว่าฟอนต์ทั่วไป จึงปรับขนาดขึ้นเล็กน้อยให้พอดี) */
-  .print\:block h1 {
-    font-size: 22pt !important;
-    font-weight: bold !important;
-    line-height: 1.2 !important;
+  
+  body {
+    background-color: white !important;
+    color: black !important;
   }
-
-  .print\:block h2 {
-    font-size: 18pt !important;
-    font-weight: bold !important;
-  }
-
-  .print\:block h3 {
-    font-size: 16pt !important;
-  }
-
-  /* ปรับขนาดตัวอักษรเนื้อหาและตาราง */
-  .print\:block table {
-    font-size: 14pt !important;
-    border-collapse: collapse !important;
-  }
-
-  .print\:block th, 
-  .print\:block td {
-    padding: 4px 8px !important;
-    vertical-align: middle !important;
-  }
-
-  /* ปรับขนาดตัวอักษรส่วนท้าย (ผู้ลงนาม) */
-  .print\:block .grid {
-    font-size: 15pt !important;
-    margin-top: 3rem !important;
+  
+  /* ตัวอย่างการกำหนดรูปแบบเฉพาะตอนพิมพ์ที่เขียนด้วย CSS ปกติได้เลย */
+  h1, h2, h3 {
+    page-break-after: avoid;
   }
 }
