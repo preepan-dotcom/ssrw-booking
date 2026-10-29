@@ -29,49 +29,6 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 
-import { useEffect, useState } from 'react';
-
-export default function ThemeToggle() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    // ตรวจสอบค่าจาก Local Storage หรือการตั้งค่าของระบบตอนโหลดหน้าเว็บ
-    const savedTheme = localStorage.getItem('theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark'); // เพิ่มคลาส dark ที่แท็ก <html>
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    if (isDarkMode) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDarkMode(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDarkMode(true);
-    }
-  };
-
-  return (
-    <button
-      onClick={toggleTheme}
-      className="px-4 py-2 font-medium rounded-lg transition-colors duration-300 
-                 bg-gray-200 text-gray-800 hover:bg-gray-300 
-                 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
-    >
-      {isDarkMode ? '☀️ สลับเป็น Light Mode' : '🌙 สลับเป็น Dark Mode'}
-    </button>
-  );
-}
-
 // --- กำหนดระดับสิทธิ์ให้แต่ละอีเมล (Role-based Access) ---
 const USER_ROLES = {
   "kamchai@ssrw.ac.th": "executive",
