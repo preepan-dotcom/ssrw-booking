@@ -1278,11 +1278,17 @@ const AdminReports = ({ bookings, items }) => {
         </div>
       </div>
 
-      {/* หน้าพิมพ์เอกสารรายงานสถิติ */}
+{/* หน้าพิมพ์เอกสารรายงานสถิติ */}
       <div className="hidden print:block print:bg-white print:p-8 print:w-full print:text-black">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">รายงานสถิติการขออนุญาตใช้อาคารสถานที่และอุปกรณ์</h1>
-          <h2 className="text-xl font-bold mb-2">โรงเรียนศรีสองรักษ์วิทยา</h2>
+          {/* 🌟 แสดงตราโรงเรียนกึ่งกลางด้านบน */}
+          <img 
+            src="https://firebasestorage.googleapis.com/v0/b/ssrw-booking.firebasestorage.app/o/logo.png?alt=media" 
+            alt="ตราโรงเรียนศรีสองรักษ์วิทยา" 
+            className="h-24 mx-auto mb-3 object-contain"
+          />
+          <h1 className="text-2xl font-bold mb-1">โรงเรียนศรีสองรักษ์วิทยา</h1>
+          <h2 className="text-xl font-bold mb-2">รายงานสถิติการขออนุญาตใช้อาคารสถานที่และอุปกรณ์</h2>
           <p className="mt-2 text-md">ประจำช่วงวันที่: {startDate ? new Date(startDate).toLocaleDateString('th-TH') : 'ทั้งหมด'} ถึง {endDate ? new Date(endDate).toLocaleDateString('th-TH') : 'ทั้งหมด'}</p>
           <p className="text-sm text-gray-700 mt-1">กรองข้อมูล: ฝ่าย ({filterDepartment === 'all' ? 'ทั้งหมด' : filterDepartment}) | สถานะ ({filterStatus === 'all' ? 'ทั้งหมด' : getStatusLabel(filterStatus)})</p>
         </div>
@@ -1337,18 +1343,12 @@ const AdminReports = ({ bookings, items }) => {
         {printOptions.list && (
           <div className="break-inside-avoid">
             <h3 className="font-bold text-lg mb-3">รายละเอียดการขออนุญาต</h3>
-            <table className="w-full border-collapse border border-black text-sm mb-12">
+            <table className="w-full border-collapse border border-black text-sm mb-4">
               <thead><tr className="bg-gray-200"><th className="border border-black px-2 py-2">ลำดับ</th><th className="border border-black px-2 py-2">วันที่</th><th className="border border-black px-2 py-2 text-left">สถานที่</th><th className="border border-black px-2 py-2 text-left">ผู้ขอ/ฝ่าย</th><th className="border border-black px-2 py-2 text-left">วัตถุประสงค์</th><th className="border border-black px-2 py-2">สถานะ</th></tr></thead>
               <tbody>{filteredBookings.map((b, i) => <tr key={b.id}><td className="border border-black px-2 py-1 text-center">{i + 1}</td><td className="border border-black px-2 py-1 text-center">{new Date(b.date).toLocaleDateString('th-TH')}</td><td className="border border-black px-2 py-1">{b.itemName}</td><td className="border border-black px-2 py-1">{b.displayName}<br/><span className="text-xs">({b.department})</span></td><td className="border border-black px-2 py-1">{b.purpose}</td><td className="border border-black px-2 py-1 text-center">{getStatusLabel(b.status)}</td></tr>)}</tbody>
             </table>
           </div>
         )}
-        
-        <div className="grid grid-cols-3 gap-8 mt-16 text-center text-sm break-inside-avoid">
-          <div><p className="mb-12">ลงชื่อ ..............................................</p><p>(..............................................)</p><p className="mt-1">ผู้จัดทำรายงาน</p></div>
-          <div><p className="mb-12">ลงชื่อ ..............................................</p><p>(..............................................)</p><p className="mt-1">หัวหน้าฝ่ายบริหารงานทั่วไป</p></div>
-          <div><p className="mb-12">ลงชื่อ ..............................................</p><p>(..............................................)</p><p className="mt-1">รองผู้อำนวยการโรงเรียน / ผู้อำนวยการ</p></div>
-        </div>
       </div>
     </div>
   );
