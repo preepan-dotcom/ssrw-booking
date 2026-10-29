@@ -29,12 +29,18 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 
+// 1. นำเข้า liff
+import liff from '@line/liff';
+
+// 2. ใส่ LIFF ID ที่ได้มาจาก LINE Developers Console
+const LIFF_ID = "2012277307-tTe2Pen5"; 
+
 // --- กำหนดระดับสิทธิ์ให้แต่ละอีเมล (Role-based Access) ---
 const USER_ROLES = {
   "kamchai@ssrw.ac.th": "executive",
   "apirat@ssrw.ac.th": "head",
   "admin@ssrw.ac.th": "admin",
-  "preepan@ssrw.ac.th": "admin"
+  "prssrw@ssrw.ac.th": "admin"
 };
 
 // --- Firebase Initialization ---
@@ -1414,6 +1420,34 @@ export default function App() {
     const itemsUnsub = onSnapshot(itemsCol, (snap) => setItems(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     const bookingsUnsub = onSnapshot(bookingsCol, (snap) => setBookings(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))));
     return () => { itemsUnsub(); bookingsUnsub(); };
+  }, [user]);
+
+  // 3. เพิ่มโค้ดส่วนนี้ภายใน useEffect หลักที่ตรวจสอบสถานะผู้ใช้ เพื่อดึงข้อมูล LINE Profile มาเชื่อม
+  useEffect(() => {
+    const initLiffAndUpdateProfile = async () => {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        
+        // ถ้าเปิดผ่าน LINE และผู้ใช้ล็อกอินอยู่
+        if (liff.isLoggedIn() && user) {
+          const lineProfile = await liff.getProfile();
+          
+          // บันทึก lineUserId ลงใน Profile บน Firestore
+          await setDoc(getProfileDoc(user.uid), {
+            lineUserId: lineProfile.userId,
+            lineDisplayName: lineProfile.displayName
+          }, { merge: true });
+          
+          console.log("บันทึก LINE User ID เรียบร้อย:", lineProfile.userId);
+        }
+      } catch (err) {
+        console.error("LIFF Init Error:", err);
+      }
+    };
+
+    if (user) {
+      initLiffAndUpdateProfile();
+    }
   }, [user]);
 
   const handleGoogleLogin = async () => {
