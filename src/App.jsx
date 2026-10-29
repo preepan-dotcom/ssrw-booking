@@ -1283,7 +1283,7 @@ const AdminReports = ({ bookings, items }) => {
         <div className="text-center mb-8">
           {/* 🌟 แสดงตราโรงเรียนกึ่งกลางด้านบน */}
           <img 
-            src="https://github.com/preepan-dotcom/ssrw-booking/blob/main/src/assets/ssrw-logo.png?raw=true" 
+            src="https://github.com/preepan-dotcom/ssrw-booking/blob/main/src/assets/ssrw-logo.png?alt=media&raw=true" 
             alt="ตราโรงเรียนศรีสองรักษ์วิทยา" 
             className="h-24 mx-auto mb-3 object-contain"
           />
