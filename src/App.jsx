@@ -1067,6 +1067,19 @@ const AdminReports = ({ bookings, items }) => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [chartType, setChartType] = useState('pie');
 
+  // ตัวเลือกในการพิมพ์
+  const [printOptions, setPrintOptions] = useState({
+    summary: true,
+    itemStats: true,
+    deptStats: true,
+    chart: true,
+    list: true
+  });
+
+  const handlePrintOptionChange = (option) => {
+    setPrintOptions(prev => ({ ...prev, [option]: !prev[option] }));
+  };
+
   const filteredBookings = bookings.filter(b => {
     if (!b.date) return false;
     if (startDate && b.date < startDate) return false;
@@ -1093,6 +1106,21 @@ const AdminReports = ({ bookings, items }) => {
     { name: 'อยู่ระหว่างพิจารณา', value: pending, color: '#F59E0B' },
   ].filter(item => item.value > 0);
 
+  // คำนวณสถิติสถานที่/อุปกรณ์ที่ถูกใช้งานบ่อย
+  const itemCounts = filteredBookings.reduce((acc, b) => {
+    acc[b.itemName] = (acc[b.itemName] || 0) + 1;
+    return acc;
+  }, {});
+  const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]);
+
+  // คำนวณสถิติฝ่ายที่ขอใช้งานบ่อย
+  const deptCounts = filteredBookings.reduce((acc, b) => {
+    const dept = b.department || 'ไม่ระบุ';
+    acc[dept] = (acc[dept] || 0) + 1;
+    return acc;
+  }, {});
+  const sortedDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 print:hidden">
@@ -1104,7 +1132,7 @@ const AdminReports = ({ bookings, items }) => {
           onClick={() => window.print()}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
         >
-          <Printer size={16} /> พิมพ์รายงาน
+          <Printer size={16} /> พิมพ์รายงานสถิติ
         </button>
       </div>
 
@@ -1133,6 +1161,30 @@ const AdminReports = ({ bookings, items }) => {
             <option value="pending_head">รอหัวหน้าฝ่ายรับทราบ</option>
             <option value="pending_deputy">รอรอง ผอ. อนุมัติ</option>
           </select>
+        </div>
+      </div>
+
+      {/* เลือกข้อมูลที่จะพิมพ์ (หน้าจอเท่านั้น) */}
+      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 print:hidden">
+        <h3 className="text-sm font-bold text-blue-800 mb-3 flex items-center gap-2">
+          <Printer size={16} /> เลือกเนื้อหาที่จะแสดงในเอกสารพิมพ์
+        </h3>
+        <div className="flex flex-wrap gap-4 text-sm">
+          <label className="flex items-center gap-2 cursor-pointer font-medium text-gray-700">
+            <input type="checkbox" checked={printOptions.summary} onChange={() => handlePrintOptionChange('summary')} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4" /> สรุปภาพรวม
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer font-medium text-gray-700">
+            <input type="checkbox" checked={printOptions.chart} onChange={() => handlePrintOptionChange('chart')} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4" /> กราฟสัดส่วนสถานะ
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer font-medium text-gray-700">
+            <input type="checkbox" checked={printOptions.itemStats} onChange={() => handlePrintOptionChange('itemStats')} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4" /> สถิติสถานที่/อุปกรณ์
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer font-medium text-gray-700">
+            <input type="checkbox" checked={printOptions.deptStats} onChange={() => handlePrintOptionChange('deptStats')} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4" /> สถิติฝ่ายที่ใช้งาน
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer font-medium text-gray-700">
+            <input type="checkbox" checked={printOptions.list} onChange={() => handlePrintOptionChange('list')} className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4" /> ตารางรายละเอียด
+          </label>
         </div>
       </div>
 
@@ -1252,52 +1304,147 @@ const AdminReports = ({ bookings, items }) => {
         </div>
       </div>
 
+      {/* ========================================== */}
+      {/* 📄 รูปแบบหน้ากระดาษสำหรับสั่งพิมพ์ (Print Layout) */}
+      {/* ========================================== */}
       <div className="hidden print:block print:bg-white print:p-8 print:w-full print:text-black">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold mb-1">บันทึกข้อความ</h1>
-          <h2 className="text-xl font-bold mb-2">รายงานการขออนุญาตใช้อาคารสถานที่และอุปกรณ์</h2>
-          <h3 className="text-lg font-normal">โรงเรียนศรีสองรักษ์วิทยา</h3>
-          <p className="mt-2 text-sm">
-            ประจำช่วงวันที่: {startDate ? new Date(startDate).toLocaleDateString('th-TH') : '-'} ถึง {endDate ? new Date(endDate).toLocaleDateString('th-TH') : '-'}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold mb-2">รายงานสถิติการขออนุญาตใช้อาคารสถานที่และอุปกรณ์</h1>
+          <h2 className="text-xl font-bold mb-2">โรงเรียนศรีสองรักษ์วิทยา</h2>
+          <p className="mt-2 text-md">
+            ประจำช่วงวันที่: {startDate ? new Date(startDate).toLocaleDateString('th-TH') : 'ทั้งหมด'} ถึง {endDate ? new Date(endDate).toLocaleDateString('th-TH') : 'ทั้งหมด'}
+          </p>
+          <p className="text-sm text-gray-700 mt-1">
+            กรองข้อมูล: ฝ่าย ({filterDepartment === 'all' ? 'ทั้งหมด' : filterDepartment}) | สถานะ ({filterStatus === 'all' ? 'ทั้งหมด' : getStatusLabel(filterStatus)})
           </p>
         </div>
 
-        <table className="w-full border-collapse border border-black text-sm mb-12">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-black px-2 py-1 text-center w-12">ลำดับ</th>
-              <th className="border border-black px-2 py-1 text-center w-24">วันที่ใช้งาน</th>
-              <th className="border border-black px-2 py-1 text-left w-48">สถานที่/อุปกรณ์</th>
-              <th className="border border-black px-2 py-1 text-left w-32">ผู้ขออนุญาต/ฝ่าย</th>
-              <th className="border border-black px-2 py-1 text-left">วัตถุประสงค์</th>
-              <th className="border border-black px-2 py-1 text-center w-24">สถานะ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredBookings.length > 0 ? (
-              filteredBookings.map((b, index) => (
-                <tr key={b.id}>
-                  <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
-                  <td className="border border-black px-2 py-1 text-center">{new Date(b.date).toLocaleDateString('th-TH')}</td>
-                  <td className="border border-black px-2 py-1">{b.itemName}</td>
-                  <td className="border border-black px-2 py-1">{b.displayName}<br/><span className="text-xs">({b.department || '-'})</span></td>
-                  <td className="border border-black px-2 py-1">{b.purpose}</td>
-                  <td className="border border-black px-2 py-1 text-center">{getStatusLabel(b.status)}</td>
+        {/* ส่วนสรุปภาพรวม */}
+        {printOptions.summary && (
+          <div className="mb-8 p-4 border-2 border-black rounded-lg">
+            <h3 className="font-bold text-lg mb-3 underline">สรุปจำนวนการใช้งานภาพรวม</h3>
+            <div className="grid grid-cols-4 gap-4 text-center">
+              <div><p className="font-semibold">ยอดขอใช้ทั้งหมด</p><p className="text-2xl font-bold mt-1">{total}</p><p className="text-sm">รายการ</p></div>
+              <div><p className="font-semibold">อนุมัติแล้ว</p><p className="text-2xl font-bold mt-1">{approved}</p><p className="text-sm">รายการ</p></div>
+              <div><p className="font-semibold">ไม่อนุมัติ</p><p className="text-2xl font-bold mt-1">{rejected}</p><p className="text-sm">รายการ</p></div>
+              <div><p className="font-semibold">รอพิจารณา</p><p className="text-2xl font-bold mt-1">{pending}</p><p className="text-sm">รายการ</p></div>
+            </div>
+          </div>
+        )}
+
+        {/* ส่วนแผนภูมิแท่งสำหรับการพิมพ์ */}
+        {printOptions.chart && total > 0 && (
+          <div className="mb-8 flex justify-center items-center break-inside-avoid">
+            <div className="w-full max-w-xl text-center border p-4">
+              <h3 className="font-bold text-lg mb-4">สัดส่วนสถานะการขออนุญาต (แผนภูมิ)</h3>
+              <BarChart width={500} height={250} data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }} className="mx-auto">
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="name" tick={{fontSize: 14, fill: '#000'}} tickLine={false} axisLine={{stroke: '#000'}} />
+                <YAxis allowDecimals={false} tick={{fontSize: 14, fill: '#000'}} tickLine={false} axisLine={{stroke: '#000'}} />
+                <Bar dataKey="value" fill="#4B5563" radius={[4, 4, 0, 0]}>
+                   {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </div>
+          </div>
+        )}
+
+        {/* ส่วนตารางจัดอันดับ (2 คอลัมน์) */}
+        <div className="grid grid-cols-2 gap-8 mb-8 break-inside-avoid">
+          {printOptions.itemStats && (
+            <div>
+              <h3 className="font-bold text-lg mb-3">สถิติสถานที่/อุปกรณ์ที่ใช้บ่อยที่สุด</h3>
+              <table className="w-full border-collapse border border-black text-sm">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="border border-black px-2 py-2 text-center w-12">ลำดับ</th>
+                    <th className="border border-black px-2 py-2 text-left">สถานที่/อุปกรณ์</th>
+                    <th className="border border-black px-2 py-2 text-center w-24">จำนวนครั้ง</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedItems.length > 0 ? sortedItems.map(([name, count], index) => (
+                    <tr key={name}>
+                      <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
+                      <td className="border border-black px-2 py-1">{name}</td>
+                      <td className="border border-black px-2 py-1 text-center font-bold">{count}</td>
+                    </tr>
+                  )) : <tr><td colSpan="3" className="border border-black px-2 py-2 text-center">ไม่มีข้อมูล</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {printOptions.deptStats && (
+            <div>
+              <h3 className="font-bold text-lg mb-3">สถิติฝ่ายงานที่ขอใช้งานมากที่สุด</h3>
+              <table className="w-full border-collapse border border-black text-sm">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="border border-black px-2 py-2 text-center w-12">ลำดับ</th>
+                    <th className="border border-black px-2 py-2 text-left">ฝ่ายงาน/กลุ่มสาระ</th>
+                    <th className="border border-black px-2 py-2 text-center w-24">จำนวนครั้ง</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedDepts.length > 0 ? sortedDepts.map(([name, count], index) => (
+                    <tr key={name}>
+                      <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
+                      <td className="border border-black px-2 py-1">{name}</td>
+                      <td className="border border-black px-2 py-1 text-center font-bold">{count}</td>
+                    </tr>
+                  )) : <tr><td colSpan="3" className="border border-black px-2 py-2 text-center">ไม่มีข้อมูล</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ส่วนตารางรายละเอียดแบบเดิม */}
+        {printOptions.list && (
+          <div className="break-inside-avoid">
+            <h3 className="font-bold text-lg mb-3">รายละเอียดการขออนุญาต</h3>
+            <table className="w-full border-collapse border border-black text-sm mb-12">
+              <thead>
+                <tr className="bg-gray-200">
+                  <th className="border border-black px-2 py-2 text-center w-12">ลำดับ</th>
+                  <th className="border border-black px-2 py-2 text-center w-24">วันที่ใช้งาน</th>
+                  <th className="border border-black px-2 py-2 text-left w-48">สถานที่/อุปกรณ์</th>
+                  <th className="border border-black px-2 py-2 text-left w-32">ผู้ขออนุญาต/ฝ่าย</th>
+                  <th className="border border-black px-2 py-2 text-left">วัตถุประสงค์</th>
+                  <th className="border border-black px-2 py-2 text-center w-24">สถานะ</th>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="border border-black px-2 py-4 text-center">ไม่มีข้อมูลตามเงื่อนไขที่เลือก</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {filteredBookings.length > 0 ? (
+                  filteredBookings.map((b, index) => (
+                    <tr key={b.id}>
+                      <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
+                      <td className="border border-black px-2 py-1 text-center">{new Date(b.date).toLocaleDateString('th-TH')}</td>
+                      <td className="border border-black px-2 py-1">{b.itemName}</td>
+                      <td className="border border-black px-2 py-1">{b.displayName}<br/><span className="text-xs text-gray-600">({b.department || '-'})</span></td>
+                      <td className="border border-black px-2 py-1">{b.purpose}</td>
+                      <td className="border border-black px-2 py-1 text-center">{getStatusLabel(b.status)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="border border-black px-2 py-4 text-center">ไม่มีข้อมูลตามเงื่อนไขที่เลือก</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
         
-        <div className="grid grid-cols-3 gap-8 mt-16 text-center text-sm">
+        {/* ลายเซ็นผู้ตรวจสอบ */}
+        <div className="grid grid-cols-3 gap-8 mt-16 text-center text-sm break-inside-avoid">
           <div>
             <p className="mb-12">ลงชื่อ .....................................................</p>
             <p>(.....................................................)</p>
-            <p className="mt-1">ผู้จัดทำรายงาน</p>
+            <p className="mt-1">ผู้จัดทำรายงานสถิติ</p>
           </div>
           <div>
             <p className="mb-12">ลงชื่อ .....................................................</p>
