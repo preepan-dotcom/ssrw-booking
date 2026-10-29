@@ -180,6 +180,11 @@ const ASSIGNABLE_TEACHERS = [
   "นายธณกร กูฎโสม (ครูอั๋น)"
 ];
 
+const CHART_COLORS = [
+  '#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', 
+  '#EC4899', '#06B6D4', '#84CC16', '#6366F1', '#14B8A6'
+];
+
 // --- 1. User: Browse & Book Items ---
 const UserBrowseItems = ({ items, bookings, user, userId, showToast }) => {
   const [selectedItem, setSelectedItem] = useState(null);
@@ -1012,17 +1017,21 @@ const AdminManageItems = ({ items, showToast }) => {
   );
 };
 
-// --- 6. Admin: Reports ---
+// --- 6. Admin: Reports (ปรับปรุงระบบแผนภูมิและจัดกลุ่มข้อมูล) ---
 const AdminReports = ({ bookings, items }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [chartType, setChartType] = useState('pie');
+  
+  // 💡 State สำหรับควบคุมรูปแบบกราฟและกลุ่มข้อมูล
+  const [chartType, setChartType] = useState('pie'); // 'pie' | 'bar'
+  const [groupBy, setGroupBy] = useState('status');  // 'status' | 'item' | 'department'
 
   const [printOptions, setPrintOptions] = useState({ summary: true, itemStats: true, deptStats: true, chart: true, list: true });
   const handlePrintOptionChange = (option) => setPrintOptions(prev => ({ ...prev, [option]: !prev[option] }));
 
+  // กรองรายการคำขอตามเงื่อนไข วันที่, ฝ่ายงาน, และสถานะ
   const filteredBookings = bookings.filter(b => {
     if (!b.date) return false;
     if (startDate && b.date < startDate) return false;
@@ -1043,20 +1052,57 @@ const AdminReports = ({ bookings, items }) => {
     return 'รอพิจารณา';
   };
 
-  const chartData = [
-    { name: 'อนุมัติแล้ว', value: approved, color: '#10B981' },
-    { name: 'ไม่อนุมัติ', value: rejected, color: '#EF4444' },
-    { name: 'อยู่ระหว่างพิจารณา', value: pending, color: '#F59E0B' },
-  ].filter(item => item.value > 0);
-
-  const itemCounts = filteredBookings.reduce((acc, b) => { acc[b.itemName] = (acc[b.itemName] || 0) + 1; return acc; }, {});
+  // 1. คำนวณความถี่การขอใช้ตามสถานที่/อุปกรณ์
+  const itemCounts = filteredBookings.reduce((acc, b) => { 
+    const key = b.itemName || 'ไม่ระบุสถานที่';
+    acc[key] = (acc[key] || 0) + 1; 
+    return acc; 
+  }, {});
   const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]);
 
+  // 2. คำนวณความถี่การขอใช้ตามฝ่ายงาน
   const deptCounts = filteredBookings.reduce((acc, b) => {
-    const dept = b.department || 'ไม่ระบุ';
-    acc[dept] = (acc[dept] || 0) + 1; return acc;
+    const dept = b.department || 'ไม่ระบุฝ่าย';
+    acc[dept] = (acc[dept] || 0) + 1; 
+    return acc;
   }, {});
   const sortedDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]);
+
+  // 3. ฟังก์ชันเตรียมข้อมูลสำหรับสร้างกราฟ dynamic ตามค่า groupBy
+  const getChartData = () => {
+    if (groupBy === 'status') {
+      return [
+        { name: 'อนุมัติแล้ว', value: approved, color: '#10B981' },
+        { name: 'ไม่อนุมัติ', value: rejected, color: '#EF4444' },
+        { name: 'อยู่ระหว่างพิจารณา', value: pending, color: '#F59E0B' },
+      ].filter(item => item.value > 0);
+    } else if (groupBy === 'item') {
+      return sortedItems.map(([name, value], index) => ({
+        name: name,
+        value: value,
+        color: CHART_COLORS[index % CHART_COLORS.length]
+      }));
+    } else if (groupBy === 'department') {
+      return sortedDepts.map(([name, value], index) => ({
+        name: name,
+        value: value,
+        color: CHART_COLORS[index % CHART_COLORS.length]
+      }));
+    }
+    return [];
+  };
+
+  const currentChartData = getChartData();
+
+  // ฟังก์ชันแสดงชื่อหัวข้อกราฟ dynamic
+  const getChartTitle = () => {
+    switch (groupBy) {
+      case 'status': return 'สัดส่วนตามสถานะการขออนุมัติ';
+      case 'item': return 'สัดส่วนตามสถานที่/อุปกรณ์ที่ใช้บ่อย';
+      case 'department': return 'สัดส่วนตามฝ่ายงานที่ใช้งานบ่อย';
+      default: return 'สัดส่วนข้อมูล';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1070,6 +1116,7 @@ const AdminReports = ({ bookings, items }) => {
         </button>
       </div>
 
+      {/* แถบกรองข้อมูล */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-wrap gap-4 items-end print:hidden">
         <div>
           <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">ตั้งแต่วันที่</label>
@@ -1098,6 +1145,7 @@ const AdminReports = ({ bookings, items }) => {
         </div>
       </div>
 
+      {/* เลือกตัวเลือกสิ่งที่จะพิมพ์ */}
       <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 print:hidden">
         <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
           <Printer size={16} /> เลือกเนื้อหาที่จะพิมพ์
@@ -1111,6 +1159,7 @@ const AdminReports = ({ bookings, items }) => {
         </div>
       </div>
 
+      {/* การ์ดแสดงข้อมูลสถิติตัวเลข 4 ช่อง */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 print:hidden">
         <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">ตามเงื่อนไข (รายการ)</p>
@@ -1130,40 +1179,87 @@ const AdminReports = ({ bookings, items }) => {
         </div>
       </div>
 
+      {/* การ์ดแผนภูมิรายงานสถิติ และ รายการนำเสนอ */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:hidden">
+        
+        {/* การ์ดสัดส่วน / กราฟ (อัปเดตให้มี Dropdown เปลี่ยนกลุ่มข้อมูลได้) */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"><PieChartIcon size={20} className="text-blue-600" /> สัดส่วน</h3>
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+            
+            {/* หัวข้อ dynamic & Dropdown เลือกเรื่องของกราฟ */}
+            <div className="flex flex-col gap-1.5">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <PieChartIcon size={20} className="text-blue-600" /> 
+                {getChartTitle()}
+              </h3>
+              
+              <select
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value)}
+                className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              >
+                <option value="status">จัดกลุ่มตาม: สถานะการขออนุมัติ</option>
+                <option value="item">จัดกลุ่มตาม: การใช้สถานที่/อุปกรณ์</option>
+                <option value="department">จัดกลุ่มตาม: ฝ่ายงาน/กลุ่มสาระ</option>
+              </select>
+            </div>
+
+            {/* ปุ่มสลับชนิดกราฟ วงกลม/แท่ง */}
+            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 self-end sm:self-auto">
               <button onClick={() => setChartType('pie')} className={`p-1.5 rounded-md text-sm flex items-center gap-1 ${chartType === 'pie' ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-blue-300 font-medium' : 'text-gray-500 dark:text-gray-400'}`}><PieChartIcon size={16} /> วงกลม</button>
               <button onClick={() => setChartType('bar')} className={`p-1.5 rounded-md text-sm flex items-center gap-1 ${chartType === 'bar' ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-blue-300 font-medium' : 'text-gray-500 dark:text-gray-400'}`}><BarChartIcon size={16} /> แท่ง</button>
             </div>
           </div>
+
           <div className="flex-1 flex justify-center items-center min-h-[300px]">
-            {total === 0 ? <p className="text-gray-400">ไม่มีข้อมูล</p> : chartType === 'pie' ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart><Pie data={chartData} cx="50%" cy="50%" labelLine={false} outerRadius={100} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{chartData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><RechartsTooltip /><Legend /></PieChart>
+            {total === 0 || currentChartData.length === 0 ? (
+              <p className="text-gray-400">ไม่มีข้อมูลตามเงื่อนไขที่เลือก</p>
+            ) : chartType === 'pie' ? (
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie 
+                    data={currentChartData} 
+                    cx="50%" 
+                    cy="50%" 
+                    labelLine={false} 
+                    outerRadius={100} 
+                    dataKey="value" 
+                    label={({ name, percent }) => `${name.length > 12 ? name.substring(0, 10) + '...' : name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {currentChartData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <RechartsTooltip formatter={(value) => [`${value} รายการ`, 'จำนวน']} />
+                  <Legend />
+                </PieChart>
               </ResponsiveContainer>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={currentChartData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                  <XAxis dataKey="name" tick={{fontSize: 12, fill: '#4B5563'}} />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{fontSize: 11, fill: '#4B5563'}} 
+                    interval={0}
+                    tickFormatter={(value) => value.length > 10 ? `${value.substring(0, 8)}...` : value}
+                  />
                   <YAxis allowDecimals={false} tick={{fontSize: 12, fill: '#4B5563'}} />
-                  <RechartsTooltip />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>{chartData.map((e, i) => <Cell key={i} fill={e.color} />)}</Bar>
+                  <RechartsTooltip formatter={(value) => [`${value} รายการ`, 'จำนวน']} />
+                  <Bar dataKey="value" name="จำนวนรายการ" radius={[4, 4, 0, 0]}>
+                    {currentChartData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
         </div>
 
+        {/* การ์ดรายการที่นำมาสรุปผล */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col">
            <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2"><CheckSquare size={20} className="text-blue-600" /> รายการที่นำมาสรุปผล</h3>
               <span className="text-sm font-medium text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">{total} รายการ</span>
            </div>
-           <div className="flex-1 overflow-y-auto max-h-[300px] pr-2 space-y-3">
+           <div className="flex-1 overflow-y-auto max-h-[320px] pr-2 space-y-3">
               {filteredBookings.length === 0 ? <p className="text-gray-400 text-sm text-center mt-10">ไม่พบรายการ</p> : filteredBookings.map(b => (
                     <div key={b.id} className="p-3 border border-gray-100 dark:border-gray-700 rounded-xl bg-gray-50/50 dark:bg-gray-700/30 flex flex-col gap-1.5">
                        <div className="flex justify-between items-start">
@@ -1182,7 +1278,7 @@ const AdminReports = ({ bookings, items }) => {
         </div>
       </div>
 
-      {/* หน้าพิมพ์: ไม่มีผลกับ Dark Mode เพราะใช้คลาส print:bg-white print:text-black */}
+      {/* หน้าพิมพ์เอกสารรายงานสถิติ */}
       <div className="hidden print:block print:bg-white print:p-8 print:w-full print:text-black">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold mb-2">รายงานสถิติการขออนุญาตใช้อาคารสถานที่และอุปกรณ์</h1>
@@ -1206,12 +1302,12 @@ const AdminReports = ({ bookings, items }) => {
         {printOptions.chart && total > 0 && (
           <div className="mb-8 flex justify-center items-center break-inside-avoid">
             <div className="w-full max-w-xl text-center border p-4">
-              <h3 className="font-bold text-lg mb-4">สัดส่วนสถานะการขออนุญาต (แผนภูมิ)</h3>
-              <BarChart width={500} height={250} data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }} className="mx-auto">
+              <h3 className="font-bold text-lg mb-4">{getChartTitle()}</h3>
+              <BarChart width={500} height={250} data={currentChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }} className="mx-auto">
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#000" />
-                <XAxis dataKey="name" tick={{fontSize: 14, fill: '#000'}} tickLine={false} axisLine={{stroke: '#000'}} />
-                <YAxis allowDecimals={false} tick={{fontSize: 14, fill: '#000'}} tickLine={false} axisLine={{stroke: '#000'}} />
-                <Bar dataKey="value" fill="#4B5563">{chartData.map((e, i) => <Cell key={i} fill={e.color} />)}</Bar>
+                <XAxis dataKey="name" tick={{fontSize: 12, fill: '#000'}} tickLine={false} axisLine={{stroke: '#000'}} />
+                <YAxis allowDecimals={false} tick={{fontSize: 12, fill: '#000'}} tickLine={false} axisLine={{stroke: '#000'}} />
+                <Bar dataKey="value" fill="#4B5563">{currentChartData.map((e, i) => <Cell key={i} fill={e.color} />)}</Bar>
               </BarChart>
             </div>
           </div>
