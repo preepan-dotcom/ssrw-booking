@@ -1426,8 +1426,18 @@ export default function App() {
   useEffect(() => {
     const initLiffAndUpdateProfile = async () => {
       try {
-        await liff.init({ liffId: LIFF_ID });
+        await liff.init({ liffId: 2012277307-tTe2Pen5 });
         
+        // 🚀 ตรวจสอบว่าเปิดใน LINE Browser หรือไม่
+        if (liff.isInClient()) {
+          liff.openWindow({
+            url: window.location.href,
+            external: true
+          });
+          liff.closeWindow();
+          return;
+        }
+
         // ถ้าเปิดผ่าน LINE และผู้ใช้ล็อกอินอยู่
         if (liff.isLoggedIn() && user) {
           const lineProfile = await liff.getProfile();

@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ssrw-booking</title>
+    <script>
+      (function() {
+        var ua = navigator.userAgent.toLowerCase();
+        var isAndroid = ua.indexOf('android') > -1;
+        var isLine = ua.indexOf('line') > -1;
+        var isFB = ua.indexOf('fban') > -1 || ua.indexOf('fbav') > -1;
+
+        if (isAndroid && (isLine || isFB)) {
+          var currentUrl = window.location.href.replace(/https?:\/\//, '');
+          window.location.href = 'intent://' + currentUrl + '#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=com.android.chrome;end';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
