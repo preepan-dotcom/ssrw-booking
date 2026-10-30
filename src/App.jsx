@@ -1431,7 +1431,7 @@ export default function App() {
         // 🚀 ตรวจสอบว่าเปิดใน LINE Browser หรือไม่
         if (liff.isInClient()) {
           liff.openWindow({
-            url: window.location.href,
+            url: "https://ssrw-booking.vercel.app", // ใส่โดเมนจริงของคุณ
             external: true
           });
           liff.closeWindow();
