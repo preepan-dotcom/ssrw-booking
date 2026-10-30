@@ -1426,6 +1426,7 @@ export default function App() {
   useEffect(() => {
     const initLiffAndUpdateProfile = async () => {
       try {
+HEAD
         await liff.init({ liffId: 2012277307-tTe2Pen5 });
         
         // 🚀 ตรวจสอบว่าเปิดใน LINE Browser หรือไม่
@@ -1438,6 +1439,9 @@ export default function App() {
           return;
         }
 
+
+        await liff.init({ liffId: LIFF_ID });
+        
         // ถ้าเปิดผ่าน LINE และผู้ใช้ล็อกอินอยู่
         if (liff.isLoggedIn() && user) {
           const lineProfile = await liff.getProfile();
