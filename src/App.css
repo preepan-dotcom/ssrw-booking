@@ -1,0 +1,28 @@
+/* นำเข้า Tailwind v4 */
+@import "tailwindcss";
+
+/* 1. บังคับให้ Dark Mode ทำงานเมื่อมีคลาส .dark ที่ <html> หรือ <body> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 2. ตั้งค่า Theme (ฟอนต์ TH Sarabun PSK) */
+@theme {
+  --font-sans: "TH Sarabun PSK", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* 3. การจัดการหน้าพิมพ์ (Print) */
+@media print {
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+  
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  
+  /* ตัวอย่างการกำหนดรูปแบบเฉพาะตอนพิมพ์ที่เขียนด้วย CSS ปกติได้เลย */
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+}
