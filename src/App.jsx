@@ -1422,26 +1422,21 @@ export default function App() {
     return () => { itemsUnsub(); bookingsUnsub(); };
   }, [user]);
 
-  // 3. เพิ่มโค้ดส่วนนี้ภายใน useEffect หลักที่ตรวจสอบสถานะผู้ใช้ เพื่อดึงข้อมูล LINE Profile มาเชื่อม
-  useEffect(() => {
+    useEffect(() => {
     const initLiffAndUpdateProfile = async () => {
       try {
-HEAD
-        await liff.init({ liffId: 2012277307-tTe2Pen5 });
+        await liff.init({ liffId: LIFF_ID });
         
-        // 🚀 ตรวจสอบว่าเปิดใน LINE Browser หรือไม่
+        // 🚀 ตรวจสอบว่าเปิดใน LINE Browser หรือไม่ และบังคับเปิด Browser ภายนอก
         if (liff.isInClient()) {
           liff.openWindow({
-            url: "https://ssrw-booking.vercel.app", // ใส่โดเมนจริงของคุณ
+            url: window.location.href,
             external: true
           });
           liff.closeWindow();
           return;
         }
 
-
-        await liff.init({ liffId: LIFF_ID });
-        
         // ถ้าเปิดผ่าน LINE และผู้ใช้ล็อกอินอยู่
         if (liff.isLoggedIn() && user) {
           const lineProfile = await liff.getProfile();
@@ -1459,9 +1454,7 @@ HEAD
       }
     };
 
-    if (user) {
-      initLiffAndUpdateProfile();
-    }
+    initLiffAndUpdateProfile();
   }, [user]);
 
   const handleGoogleLogin = async () => {
