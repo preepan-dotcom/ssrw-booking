@@ -1422,39 +1422,73 @@ export default function App() {
     return () => { itemsUnsub(); bookingsUnsub(); };
   }, [user]);
 
-    useEffect(() => {
-    const initLiffAndUpdateProfile = async () => {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      // --- LINE External Browser & Profile Sync ---
+  useEffect(() => {
+    const initLiff = async () => {
       try {
         await liff.init({ liffId: LIFF_ID });
-        
-        // 🚀 ตรวจสอบว่าเปิดใน LINE Browser หรือไม่ และบังคับเปิด Browser ภายนอก
         if (liff.isInClient()) {
           liff.openWindow({
             url: window.location.href,
             external: true
           });
           liff.closeWindow();
-          return;
-        }
-
-        // ถ้าเปิดผ่าน LINE และผู้ใช้ล็อกอินอยู่
-        if (liff.isLoggedIn() && user) {
-          const lineProfile = await liff.getProfile();
-          
-          // บันทึก lineUserId ลงใน Profile บน Firestore
-          await setDoc(getProfileDoc(user.uid), {
-            lineUserId: lineProfile.userId,
-            lineDisplayName: lineProfile.displayName
-          }, { merge: true });
-          
-          console.log("บันทึก LINE User ID เรียบร้อย:", lineProfile.userId);
         }
       } catch (err) {
         console.error("LIFF Init Error:", err);
       }
     };
+    initLiff();
+  }, []);
 
-    initLiffAndUpdateProfile();
+  useEffect(() => {
+    const syncLineProfile = async () => {
+      if (user && liff.isLoggedIn()) {
+        try {
+          const lineProfile = await liff.getProfile();
+          await setDoc(getProfileDoc(user.uid), {
+            lineUserId: lineProfile.userId,
+            lineDisplayName: lineProfile.displayName
+          }, { merge: true });
+        } catch (err) {
+          console.error("LIFF Profile Sync Error:", err);
+        }
+      }
+    };
+    syncLineProfile();
   }, [user]);
 
   const handleGoogleLogin = async () => {
