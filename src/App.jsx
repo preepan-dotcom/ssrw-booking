@@ -1422,39 +1422,6 @@ export default function App() {
     return () => { itemsUnsub(); bookingsUnsub(); };
   }, [user]);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
       // --- LINE External Browser & Profile Sync ---
   useEffect(() => {
     const initLiff = async () => {
